@@ -22,4 +22,4 @@ faker
 httpx
 gunicorn
 gevent
-sentencepiece  
+sentencepiece
