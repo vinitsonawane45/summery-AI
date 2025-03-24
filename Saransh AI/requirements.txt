@@ -1,4 +1,3 @@
-
 flask
 flask-sqlalchemy
 transformers
@@ -14,9 +13,6 @@ requests
 sqlalchemy
 tqdm
 torch
-nltk_data_punkt
-nltk_data_stopwords
-nltk_data_vader_lexicon
 pytest
 pytest-cov
 flake8
@@ -26,3 +22,4 @@ faker
 httpx
 gunicorn
 gevent
+sentencepiece  
