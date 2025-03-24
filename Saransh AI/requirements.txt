@@ -4,6 +4,7 @@ transformers
 beautifulsoup4
 PyPDF2
 python-dotenv
+nltk
 aiohttp
 flask-limiter
 bleach
