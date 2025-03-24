@@ -1,3 +1,4 @@
+
 flask
 flask-sqlalchemy
 transformers
@@ -9,3 +10,19 @@ aiohttp
 flask-limiter
 bleach
 werkzeug
+requests
+sqlalchemy
+tqdm
+torch
+nltk_data_punkt
+nltk_data_stopwords
+nltk_data_vader_lexicon
+pytest
+pytest-cov
+flake8
+black
+python-dateutil
+faker
+httpx
+gunicorn
+gevent
