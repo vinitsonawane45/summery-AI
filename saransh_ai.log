@@ -1,0 +1,111 @@
+Login error: (pymysql.err.OperationalError) (1054, "Unknown column 'user.is_active' in 'field list'")
+[SQL: SELECT user.id AS user_id, user.username AS user_username, user.email AS user_email, user.password AS user_password, user.preferences AS user_preferences, user.is_active AS user_is_active 
+FROM user 
+WHERE user.username = %(username_1)s OR user.email = %(email_1)s 
+ LIMIT %(param_1)s]
+[parameters: {'username_1': 'vinitsonawane2005@gmail.com', 'email_1': 'vinitsonawane2005@gmail.com', 'param_1': 1}]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+Login error: (pymysql.err.OperationalError) (1054, "Unknown column 'user.is_active' in 'field list'")
+[SQL: SELECT user.id AS user_id, user.username AS user_username, user.email AS user_email, user.password AS user_password, user.preferences AS user_preferences, user.is_active AS user_is_active 
+FROM user 
+WHERE user.username = %(username_1)s OR user.email = %(email_1)s 
+ LIMIT %(param_1)s]
+[parameters: {'username_1': 'vishal', 'email_1': 'vishal', 'param_1': 1}]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2025-03-24 20:31:40,174 - ERROR - Login error: (pymysql.err.OperationalError) (1054, "Unknown column 'user.created_at' in 'field list'")
+[SQL: SELECT user.id AS user_id, user.username AS user_username, user.email AS user_email, user.password AS user_password, user.preferences AS user_preferences, user.is_active AS user_is_active, user.created_at AS user_created_at 
+FROM user 
+WHERE user.username = %(username_1)s OR user.email = %(email_1)s 
+ LIMIT %(param_1)s]
+[parameters: {'username_1': 'vinitsonawane2005@gmail.com', 'email_1': 'vinitsonawane2005@gmail.com', 'param_1': 1}]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2025-03-24 20:32:17,854 - ERROR - Login error: (pymysql.err.OperationalError) (1054, "Unknown column 'user.created_at' in 'field list'")
+[SQL: SELECT user.id AS user_id, user.username AS user_username, user.email AS user_email, user.password AS user_password, user.preferences AS user_preferences, user.is_active AS user_is_active, user.created_at AS user_created_at 
+FROM user 
+WHERE user.username = %(username_1)s OR user.email = %(email_1)s 
+ LIMIT %(param_1)s]
+[parameters: {'username_1': 'vishal', 'email_1': 'vishal', 'param_1': 1}]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2025-03-24 20:39:45,293 - ERROR - Database migration failed: Not an executable object: 'ALTER TABLE user ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP'
+2025-03-24 21:01:30,685 - ERROR - Text analysis error: 
+**********************************************************************
+  Resource [93mpunkt_tab[0m not found.
+  Please use the NLTK Downloader to obtain the resource:
+
+  [31m>>> import nltk
+  >>> nltk.download('punkt_tab')
+  [0m
+  For more information see: https://www.nltk.org/data.html
+
+  Attempted to load [93mtokenizers/punkt_tab/english/[0m
+
+  Searched in:
+    - 'C:\\Users\\vinit/nltk_data'
+    - 'C:\\anconda3\\nltk_data'
+    - 'C:\\anconda3\\share\\nltk_data'
+    - 'C:\\anconda3\\lib\\nltk_data'
+    - 'C:\\Users\\vinit\\AppData\\Roaming\\nltk_data'
+    - 'C:\\nltk_data'
+    - 'D:\\nltk_data'
+    - 'E:\\nltk_data'
+**********************************************************************
+
+2025-03-24 21:15:26,050 - ERROR - Text analysis error: 
+**********************************************************************
+  Resource [93mpunkt_tab[0m not found.
+  Please use the NLTK Downloader to obtain the resource:
+
+  [31m>>> import nltk
+  >>> nltk.download('punkt_tab')
+  [0m
+  For more information see: https://www.nltk.org/data.html
+
+  Attempted to load [93mtokenizers/punkt_tab/english/[0m
+
+  Searched in:
+    - 'C:\\Users\\vinit/nltk_data'
+    - 'C:\\anconda3\\nltk_data'
+    - 'C:\\anconda3\\share\\nltk_data'
+    - 'C:\\anconda3\\lib\\nltk_data'
+    - 'C:\\Users\\vinit\\AppData\\Roaming\\nltk_data'
+    - 'C:\\nltk_data'
+    - 'D:\\nltk_data'
+    - 'E:\\nltk_data'
+**********************************************************************
+
+2025-03-24 21:15:26,055 - ERROR - Text analysis error: 
+**********************************************************************
+  Resource [93mpunkt_tab[0m not found.
+  Please use the NLTK Downloader to obtain the resource:
+
+  [31m>>> import nltk
+  >>> nltk.download('punkt_tab')
+  [0m
+  For more information see: https://www.nltk.org/data.html
+
+  Attempted to load [93mtokenizers/punkt_tab/english/[0m
+
+  Searched in:
+    - 'C:\\Users\\vinit/nltk_data'
+    - 'C:\\anconda3\\nltk_data'
+    - 'C:\\anconda3\\share\\nltk_data'
+    - 'C:\\anconda3\\lib\\nltk_data'
+    - 'C:\\Users\\vinit\\AppData\\Roaming\\nltk_data'
+    - 'C:\\nltk_data'
+    - 'D:\\nltk_data'
+    - 'E:\\nltk_data'
+**********************************************************************
+
+2025-03-24 23:15:24,541 - CRITICAL - Model initialization failed: name 'SentimentIntensityAnalyzer' is not defined
+2025-03-24 23:27:43,181 - WARNING - KeyBERT not installed, falling back to NLTK for keyword extraction
+2025-03-24 23:28:18,351 - WARNING - KeyBERT not installed, falling back to NLTK for keyword extraction
+2025-03-24 23:34:45,325 - ERROR - Summarization error: index out of range in self
+2025-03-24 23:34:59,509 - ERROR - Summarization endpoint error: 413 Request Entity Too Large: The data value transmitted exceeds the capacity limit.
+2025-03-24 23:35:23,148 - ERROR - Summarization error: index out of range in self
+2025-03-24 23:39:19,631 - ERROR - Summarization error: index out of range in self
+2025-03-24 23:42:30,904 - ERROR - Summarization error: index out of range in self
+2025-03-24 23:45:40,745 - ERROR - Summarization endpoint error: 413 Request Entity Too Large: The data value transmitted exceeds the capacity limit.
+2025-03-24 23:46:00,001 - ERROR - Summarization error: index out of range in self
+2025-03-24 23:53:36,461 - CRITICAL - Model initialization failed: name 'torch' is not defined
+2025-03-26 01:19:46,746 - ERROR - Login error: 415 Unsupported Media Type: Did not attempt to load JSON data because the request Content-Type was not 'application/json'.
+2025-03-26 01:21:02,401 - ERROR - Login error: 415 Unsupported Media Type: Did not attempt to load JSON data because the request Content-Type was not 'application/json'.
