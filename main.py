@@ -18,19 +18,16 @@ import aiohttp
 from functools import lru_cache
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_limiter.storage.sqlalchemy import SQLAlchemyStorage
 import logging
 from logging.handlers import RotatingFileHandler
 import secrets
-from datetime import timedelta, datetime
-from threading import Lock
+from datetime import timedelta
 import bleach
-from sqlalchemy.exc import OperationalError
-from sqlalchemy import text
 import pymysql
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from threading import Lock
 
-# Initialize NLTK data
+# Initialize NLTK
 nltk.download('punkt', quiet=True)
 nltk.download('stopwords', quiet=True)
 nltk.download('vader_lexicon', quiet=True)
@@ -44,7 +41,6 @@ app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URI')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(32))
-app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True
@@ -54,61 +50,46 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 db = SQLAlchemy(app)
 
 # Configure logging
-handler = RotatingFileHandler('saransh_ai.log', maxBytes=10000, backupCount=3)
+handler = RotatingFileHandler('app.log', maxBytes=10000, backupCount=3)
 handler.setLevel(logging.INFO)
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 app.logger.addHandler(handler)
 
-# Initialize Limiter with SQLAlchemy storage
+# Initialize Flask-Limiter with SQLAlchemy storage
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
-    storage_uri=os.getenv('DATABASE_URI')
+    storage=SQLAlchemyStorage(db.engine, table_name='rate_limits')
 )
 
-# Database models
+# User Model
 class User(db.Model):
+    __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False, index=True)
-    email = db.Column(db.String(120), unique=True, nullable=False, index=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(255), nullable=False)
     preferences = db.Column(db.String(50), default='150')
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=True)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
 
 # Initialize database
 with app.app_context():
     db.create_all()
 
-# Model loading
+# Initialize T5 model
 model_lock = Lock()
 tokenizer = None
 model = None
 
 def load_models():
     global tokenizer, model
-    retries = 3
-    for attempt in range(retries):
-        try:
-            with model_lock:
-                model_name = "t5-small"
-                tokenizer = T5Tokenizer.from_pretrained(model_name, legacy=False)
-                model = T5ForConditionalGeneration.from_pretrained(model_name)
-            app.logger.info("Successfully loaded T5 model")
-            break
-        except Exception as e:
-            app.logger.error(f"Attempt {attempt + 1}/{retries} - Failed to load T5 model: {str(e)}")
-            if attempt == retries - 1:
-                raise
-            asyncio.sleep(2 ** attempt)
+    with model_lock:
+        tokenizer = T5Tokenizer.from_pretrained("t5-small", legacy=False)
+        model = T5ForConditionalGeneration.from_pretrained("t5-small")
 
-try:
-    load_models()
-    app.logger.info("Model loading completed successfully")
-except Exception as e:
-    app.logger.critical(f"Model initialization failed: {str(e)}")
-    raise
+load_models()
 
 # Text processing utilities
 sid = SentimentIntensityAnalyzer()
@@ -126,30 +107,24 @@ def summarize_text(text, max_length=150):
             
         input_text = "summarize: " + sanitized_text
         
-        try:
-            input_ids = tokenizer.encode(input_text, return_tensors="pt", max_length=512, truncation=True)
-        except Exception as e:
-            raise ValueError(f"Tokenization failed: {str(e)}")
+        input_ids = tokenizer.encode(input_text, return_tensors="pt", max_length=512, truncation=True)
         
         with model_lock:
-            try:
-                summary_ids = model.generate(
-                    input_ids,
-                    max_length=max_length,
-                    min_length=min(20, max_length//2),
-                    length_penalty=2.0,
-                    num_beams=4,
-                    early_stopping=True
-                )
-                summary = tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+            summary_ids = model.generate(
+                input_ids,
+                max_length=max_length,
+                min_length=min(20, max_length//2),
+                length_penalty=2.0,
+                num_beams=4,
+                early_stopping=True
+            )
+            summary = tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+            
+            if not summary or len(summary.strip()) == 0:
+                raise ValueError("Empty summary generated")
                 
-                if not summary or len(summary.strip()) == 0:
-                    raise ValueError("Empty summary generated")
-                    
-                return summary
-            except Exception as e:
-                raise ValueError(f"Summary generation failed: {str(e)}")
-                
+            return summary
+            
     except Exception as e:
         app.logger.error(f"Summarization error: {str(e)}")
         raise ValueError(f"Summarization failed: {str(e)}")
@@ -273,12 +248,12 @@ def analyze_sentiment(text):
         app.logger.error(f"Sentiment analysis error: {str(e)}")
         raise ValueError(f"Sentiment analysis failed: {str(e)}")
 
-# Routes
 @app.route('/')
 def home():
     return render_template('index.html')
 
 @app.route('/register', methods=['POST'])
+@limiter.limit("5 per minute")
 def register():
     try:
         data = request.get_json()
@@ -299,7 +274,11 @@ def register():
             return jsonify({'error': 'Email already registered'}), 400
             
         hashed_password = generate_password_hash(password)
-        new_user = User(username=username, email=email, password=hashed_password)
+        new_user = User(
+            username=username,
+            email=email,
+            password=hashed_password
+        )
         db.session.add(new_user)
         db.session.commit()
         
@@ -310,6 +289,7 @@ def register():
         return jsonify({'error': 'Registration failed. Please try again.'}), 500
 
 @app.route('/login', methods=['POST'])
+@limiter.limit("10 per minute")
 def login():
     try:
         data = request.get_json()
@@ -329,7 +309,6 @@ def login():
         return jsonify({
             'message': 'Login successful',
             'username': user.username,
-            'joinDate': user.created_at.strftime('%Y-%m-%d') if user.created_at else 'Unknown',
             'preferences': user.preferences
         })
         
@@ -358,7 +337,6 @@ def profile():
             
         return jsonify({
             'username': user.username,
-            'joinDate': user.created_at.strftime('%Y-%m-%d') if user.created_at else 'Unknown',
             'preferences': user.preferences
         })
         
@@ -429,7 +407,7 @@ async def summarize():
         
         try:
             summary = summarize_text(text, max_length)
-            app.logger.info(f"Successfully generated summary (length: {len(summary)})")
+            app.logger.info(f"Generated summary (length: {len(summary)})")
             
             if 'user_id' not in session:
                 session['trial_used'] = True
@@ -465,9 +443,7 @@ def analyze():
             session['trial_used'] = True
             
         return jsonify({
-            'analysis': f"Word Count: {analysis['word_count']}\nUnique Words: {analysis['unique_words']}\n" +
-                       f"Sentence Count: {analysis['sentence_count']}\nAvg Word Length: {analysis['avg_word_length']}\n" +
-                       f"Avg Sentence Length: {analysis['avg_sentence_length']}\nReadability: {analysis['readability']}"
+            'analysis': analysis
         })
         
     except Exception as e:
@@ -519,7 +495,7 @@ def keywords():
             session['trial_used'] = True
             
         return jsonify({
-            'keywords': ', '.join(keywords)
+            'keywords': keywords
         })
         
     except Exception as e:
@@ -545,11 +521,7 @@ def sentiment():
             session['trial_used'] = True
             
         return jsonify({
-            'sentiment': f"Overall Sentiment: {sentiment['sentiment']}\n" +
-                        f"Positive: {sentiment['positive']}%\n" +
-                        f"Negative: {sentiment['negative']}%\n" +
-                        f"Neutral: {sentiment['neutral']}%\n" +
-                        f"Compound Score: {sentiment['compound']}"
+            'sentiment': sentiment
         })
         
     except Exception as e:
@@ -558,7 +530,7 @@ def sentiment():
 
 @app.route('/dashboard')
 def dashboard():
-    return "running"
+    return "Application is running"
 
 if __name__ == '__main__':
     app.run(debug=True)
