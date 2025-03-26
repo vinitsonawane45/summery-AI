@@ -26,6 +26,7 @@ from threading import Lock
 import bleach
 from sqlalchemy.exc import OperationalError
 from sqlalchemy import text
+import pymysql
 
 # Initialize NLTK data
 nltk.download('punkt', quiet=True)
@@ -33,6 +34,7 @@ nltk.download('stopwords', quiet=True)
 nltk.download('vader_lexicon', quiet=True)
 
 load_dotenv()
+pymysql.install_as_MySQLdb()
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(32))
