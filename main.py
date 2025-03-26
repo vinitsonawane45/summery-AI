@@ -549,6 +549,6 @@ def sentiment():
     except Exception as e:
         app.logger.error(f"Sentiment analysis error: {str(e)}")
         return jsonify({'error': str(e)}), 500
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+@app.route('/')
+def home():
+    return "Flask App Running!"
