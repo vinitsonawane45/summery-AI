@@ -27,6 +27,7 @@ import bleach
 from sqlalchemy.exc import OperationalError
 from sqlalchemy import text
 import pymysql
+from redis import Redis
 
 # Initialize NLTK data
 nltk.download('punkt', quiet=True)
@@ -37,6 +38,11 @@ load_dotenv()
 pymysql.install_as_MySQLdb()
 
 app = Flask(__name__)
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    storage_uri="redis://localhost:6379"
+)
 app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(32))
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URI')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
