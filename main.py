@@ -18,7 +18,6 @@ import aiohttp
 from functools import lru_cache
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from flask_limiter.extension import SQLAlchemyStorage
 import logging
 from logging.handlers import RotatingFileHandler
 import secrets
@@ -40,25 +39,19 @@ load_dotenv()
 pymysql.install_as_MySQLdb()
 
 app = Flask(__name__)
-MYSQL_URL = os.getenv("DATABASE_URI")
-engine = create_engine(MYSQL_URL)
-Session = sessionmaker(bind=engine)
-db_session = Session()
 
-limiter = Limiter(
-    app=app,
-    key_func=get_remote_address,
-    storage_uri=MYSQL_URL
-)
-
-app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(32))
+# Database configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URI')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(32))
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
+# Initialize SQLAlchemy
+db = SQLAlchemy(app)
 
 # Configure logging
 handler = RotatingFileHandler('saransh_ai.log', maxBytes=10000, backupCount=3)
@@ -67,9 +60,14 @@ formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 app.logger.addHandler(handler)
 
-db = SQLAlchemy(app)
-model_lock = Lock()
+# Initialize Limiter with SQLAlchemy storage
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    storage_uri=os.getenv('DATABASE_URI')
+)
 
+# Database models
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False, index=True)
@@ -83,6 +81,11 @@ class User(db.Model):
 with app.app_context():
     db.create_all()
 
+# Model loading
+model_lock = Lock()
+tokenizer = None
+model = None
+
 def load_models():
     global tokenizer, model
     retries = 3
@@ -90,7 +93,7 @@ def load_models():
         try:
             with model_lock:
                 model_name = "t5-small"
-                tokenizer = T5Tokenizer.from_pretrained(model_name, legacy=False)  
+                tokenizer = T5Tokenizer.from_pretrained(model_name, legacy=False)
                 model = T5ForConditionalGeneration.from_pretrained(model_name)
             app.logger.info("Successfully loaded T5 model")
             break
@@ -107,6 +110,7 @@ except Exception as e:
     app.logger.critical(f"Model initialization failed: {str(e)}")
     raise
 
+# Text processing utilities
 sid = SentimentIntensityAnalyzer()
 stop_words = set(stopwords.words('english'))
 
@@ -269,6 +273,7 @@ def analyze_sentiment(text):
         app.logger.error(f"Sentiment analysis error: {str(e)}")
         raise ValueError(f"Sentiment analysis failed: {str(e)}")
 
+# Routes
 @app.route('/')
 def home():
     return render_template('index.html')
@@ -551,7 +556,7 @@ def sentiment():
         app.logger.error(f"Sentiment analysis error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/dashboard')  
+@app.route('/dashboard')
 def dashboard():
     return "running"
 
