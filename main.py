@@ -36,7 +36,7 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(32))
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URI', 'sqlite:///saransh_ai.db','mysql://root:SyCBAbHXDzxlvZPyCVVpXKzrrFDXGkiH@centerbeam.proxy.rlwy.net:54259/railway')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URI','mysql://root:SyCBAbHXDzxlvZPyCVVpXKzrrFDXGkiH@centerbeam.proxy.rlwy.net:54259/railway')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
