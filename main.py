@@ -27,7 +27,8 @@ import bleach
 from sqlalchemy.exc import OperationalError
 from sqlalchemy import text
 import pymysql
-from redis import Redis
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 # Initialize NLTK data
 nltk.download('punkt', quiet=True)
@@ -38,6 +39,18 @@ load_dotenv()
 pymysql.install_as_MySQLdb()
 
 app = Flask(__name__)
+MYSQL_URL = os.getenv("DATABASE_URI")
+engine = create_engine(MYSQL_URL)
+Session = sessionmaker(bind=engine)
+session = Session()
+
+limiter = Limiter(
+    key_func=get_remote_address,
+    storage=SQLAlchemyStorage(engine)
+)
+
+limiter.init_app(app)
+
 app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(32))
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URI')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
