@@ -18,7 +18,7 @@ import aiohttp
 from functools import lru_cache
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from flask_limiter.storage import SQLAlchemyStorage
+from flask_limiter.extension import SQLAlchemyStorage
 import logging
 from logging.handlers import RotatingFileHandler
 import secrets
@@ -46,11 +46,10 @@ Session = sessionmaker(bind=engine)
 db_session = Session()
 
 limiter = Limiter(
+    app=app,
     key_func=get_remote_address,
-    storage=SQLAlchemyStorage(engine)
+    storage_uri=MYSQL_URL
 )
-
-limiter.init_app(app)
 
 app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(32))
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URI')
@@ -117,20 +116,17 @@ def summarize_text(text, max_length=150):
         if not text or len(text.strip()) == 0:
             raise ValueError("Empty text provided for summarization")
             
-        # Clean and truncate text
         sanitized_text = bleach.clean(text[:5000])
         if len(sanitized_text) < 20:
             raise ValueError("Text too short for summarization")
             
         input_text = "summarize: " + sanitized_text
         
-        # Tokenize with proper error handling
         try:
             input_ids = tokenizer.encode(input_text, return_tensors="pt", max_length=512, truncation=True)
         except Exception as e:
             raise ValueError(f"Tokenization failed: {str(e)}")
         
-        # Generate summary
         with model_lock:
             try:
                 summary_ids = model.generate(
@@ -173,11 +169,9 @@ async def fetch_url_content(url):
                 content = await response.text()
                 soup = BeautifulSoup(content, "html.parser")
                 
-                # Remove unwanted elements
                 for element in soup(["script", "style", "iframe", "noscript", "header", "footer", "nav"]):
                     element.decompose()
                 
-                # Get text from paragraphs and headings
                 text_elements = soup.find_all(['p', 'h1', 'h2', 'h3'])
                 text = ' '.join([element.get_text(separator=" ", strip=True) for element in text_elements])
                 
@@ -198,11 +192,10 @@ def extract_text_from_pdf(pdf_file):
         reader = PyPDF2.PdfReader(pdf_file)
         text = ""
         
-        # Extract text from first 5 pages or until we have enough content
         for page in reader.pages[:5]:
             page_text = page.extract_text() or ""
             text += page_text + "\n"
-            if len(text) > 3000:  # Stop if we have enough content
+            if len(text) > 3000:
                 break
                 
         if not text.strip():
@@ -219,7 +212,6 @@ def analyze_text(text):
         if not text or len(text.strip()) < 10:
             raise ValueError("Text too short for analysis")
             
-        # Basic text analysis
         words = word_tokenize(text)
         word_count = len(words)
         unique_words = len(set(words))
@@ -398,11 +390,9 @@ def update_preferences():
 @limiter.limit("10 per minute")
 async def summarize():
     try:
-        # Authentication check
         if 'user_id' not in session and 'trial_used' in session:
             return jsonify({'error': 'Please register to continue using the service'}), 401
         
-        # Get user preference or default
         max_length = 150
         if 'user_id' in session:
             user = User.query.get(session['user_id'])
@@ -412,7 +402,6 @@ async def summarize():
                 except ValueError:
                     pass
         
-        # Get input text
         text = ""
         if 'pdf_file' in request.files and request.files['pdf_file']:
             try:
@@ -430,11 +419,9 @@ async def summarize():
                 else:
                     text = text_input
         
-        # Validate text
         if not text or len(text.strip()) < 20:
             return jsonify({'error': 'No valid content to summarize (minimum 20 characters required)'}), 400
         
-        # Generate summary
         try:
             summary = summarize_text(text, max_length)
             app.logger.info(f"Successfully generated summary (length: {len(summary)})")
