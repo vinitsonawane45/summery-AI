@@ -18,6 +18,7 @@ import aiohttp
 from functools import lru_cache
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_limiter.storage import SQLAlchemyStorage
 import logging
 from logging.handlers import RotatingFileHandler
 import secrets
@@ -42,7 +43,7 @@ app = Flask(__name__)
 MYSQL_URL = os.getenv("DATABASE_URI")
 engine = create_engine(MYSQL_URL)
 Session = sessionmaker(bind=engine)
-session = Session()
+db_session = Session()
 
 limiter = Limiter(
     key_func=get_remote_address,
@@ -69,8 +70,6 @@ app.logger.addHandler(handler)
 
 db = SQLAlchemy(app)
 model_lock = Lock()
-limiter = Limiter(get_remote_address)
-limiter.init_app(app)
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -564,6 +563,10 @@ def sentiment():
     except Exception as e:
         app.logger.error(f"Sentiment analysis error: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
 @app.route('/dashboard')  
 def dashboard():
     return "running"
+
+if __name__ == '__main__':
+    app.run(debug=True)
