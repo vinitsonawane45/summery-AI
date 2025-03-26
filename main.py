@@ -55,6 +55,7 @@ handler.setFormatter(formatter)
 app.logger.addHandler(handler)
 
 db = SQLAlchemy(app)
+model_lock = Lock()
 limiter = Limiter(get_remote_address)
 limiter.init_app(app)
 
