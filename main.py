@@ -77,7 +77,7 @@ def load_models():
         try:
             with model_lock:
                 model_name = "t5-small"
-                tokenizer = T5Tokenizer.from_pretrained("t5-small", legacy=False)
+                tokenizer = T5Tokenizer.from_pretrained(model_name)
                 model = T5ForConditionalGeneration.from_pretrained(model_name)
             app.logger.info("Successfully loaded T5 model")
             break
