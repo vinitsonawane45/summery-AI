@@ -60,10 +60,9 @@ handler.setFormatter(formatter)
 app.logger.addHandler(handler)
 
 db = SQLAlchemy(app)
-limiter = Limiter(
-    key_func=get_remote_address,
-    app=app
-)
+limiter = Limiter(get_remote_address)
+limiter.init_app(app)
+
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False, index=True)
