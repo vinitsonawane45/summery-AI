@@ -60,8 +60,13 @@ handler.setFormatter(formatter)
 app.logger.addHandler(handler)
 
 db = SQLAlchemy(app)
-limiter = Limiter(app=app, key_func=get_remote_address)
-model_lock = Lock()
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    key_func=get_remote_address, 
+    storage_uri=app.config["SQLALCHEMY_DATABASE_URI"]  
+)
+    
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
