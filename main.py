@@ -549,6 +549,6 @@ def sentiment():
     except Exception as e:
         app.logger.error(f"Sentiment analysis error: {str(e)}")
         return jsonify({'error': str(e)}), 500
-@app.route('/another-route')
-def home_v2():  
-    return "Flask App Running!"
+@app.route('/dashboard')  
+def dashboard():
+    return "running"
