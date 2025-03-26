@@ -61,13 +61,9 @@ app.logger.addHandler(handler)
 
 db = SQLAlchemy(app)
 limiter = Limiter(
-    get_remote_address,
-    app=app,
-    key_func=get_remote_address, 
-    storage_uri=app.config["SQLALCHEMY_DATABASE_URI"]  
+    key_func=get_remote_address,
+    app=app
 )
-    
-
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False, index=True)
