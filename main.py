@@ -1,3 +1,4 @@
+
 from flask import Flask, request, jsonify, session, render_template
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -18,7 +19,6 @@ import aiohttp
 from functools import lru_cache
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from flask_limiter.storage import SQLAlchemyStorage# Updated import path
 import logging
 from logging.handlers import RotatingFileHandler
 import secrets
@@ -42,6 +42,9 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URI')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(32))
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 # Initialize SQLAlchemy
 db = SQLAlchemy(app)
@@ -53,14 +56,12 @@ formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 app.logger.addHandler(handler)
 
-# Initialize Flask-Limiter with SQLAlchemy storage
+# Initialize Flask-Limiter with storage_uri (no direct SQLAlchemyStorage import needed)
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
-    storage=SQLAlchemyStorage(db.engine, table_name='rate_limits')
+    storage_uri=os.getenv('DATABASE_URI')  # Uses same database as SQLAlchemy
 )
-
-# [Rest of your code remains exactly the same...]
 
 # User Model
 class User(db.Model):
@@ -510,7 +511,7 @@ def sentiment():
         
         if 'user_id' not in session:
             session['trial_used'] = True
-         
+            
         return jsonify({
             'sentiment': sentiment
         })
