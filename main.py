@@ -25,7 +25,7 @@ from datetime import timedelta
 import bleach
 import pymysql
 from threading import Lock
-from sqlalchemy import create_engine
+import redis
 
 # Initialize NLTK
 nltk.download('punkt', quiet=True)
@@ -56,12 +56,20 @@ formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 app.logger.addHandler(handler)
 
-# Initialize Flask-Limiter with MySQL storage
-# Using storage_uri format that works with Flask-Limiter 3.x
+# Initialize Redis for rate limiting
+redis_client = redis.Redis(
+    host=os.getenv('REDIS_HOST', 'localhost'),
+    port=int(os.getenv('REDIS_PORT', 6379)),
+    password=os.getenv('REDIS_PASSWORD', None),
+    db=int(os.getenv('REDIS_DB', 0))
+)
+
+# Initialize Flask-Limiter with Redis storage
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
-    storage_uri="mysql+pymysql://" + os.getenv('DATABASE_URI').split('://')[1]
+    storage_uri=f"redis://{os.getenv('REDIS_HOST', 'localhost')}:{os.getenv('REDIS_PORT', 6379)}/{os.getenv('REDIS_DB', 0)}",
+    storage_options={"password": os.getenv('REDIS_PASSWORD', None)}
 )
 
 # User Model
