@@ -26,7 +26,6 @@ import bleach
 import pymysql
 from threading import Lock
 import redis
-from waitress import serve  # Production server
 
 # Initialize NLTK
 nltk.download('punkt', quiet=True)
@@ -39,17 +38,14 @@ pymysql.install_as_MySQLdb()
 app = Flask(__name__)
 
 # Configuration
-class Config:
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URI')
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SECRET_KEY = os.getenv('SECRET_KEY', secrets.token_hex(32))
-    PERMANENT_SESSION_LIFETIME = timedelta(days=7)
-    SESSION_COOKIE_SECURE = True
-    SESSION_COOKIE_HTTPONLY = True
-    SESSION_COOKIE_SAMESITE = 'Lax'
-    REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
-
-app.config.from_object(Config)
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URI')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(32))
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['REDIS_URL'] = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
 
 # Initialize SQLAlchemy
 db = SQLAlchemy(app)
@@ -62,14 +58,23 @@ handler.setFormatter(formatter)
 app.logger.addHandler(handler)
 
 # Initialize Redis
-redis_client = redis.from_url(app.config['REDIS_URL'])
+try:
+    redis_client = redis.from_url(app.config['REDIS_URL'])
+    redis_client.ping()  # Test connection
+except redis.ConnectionError:
+    app.logger.error("Failed to connect to Redis")
+    # Fallback to memory storage if Redis fails
+    limiter_storage = "memory://"
+else:
+    limiter_storage = app.config['REDIS_URL']
 
 # Initialize Flask-Limiter
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
-    storage_uri=app.config['REDIS_URL'],
-    strategy="fixed-window"  # or "moving-window"
+    storage_uri=limiter_storage,
+    strategy="fixed-window",
+    default_limits=["200 per day", "50 per hour"]
 )
 
 # User Model
