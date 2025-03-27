@@ -26,6 +26,7 @@ import bleach
 import pymysql
 from threading import Lock
 import redis
+from waitress import serve  # Production server
 
 # Initialize NLTK
 nltk.download('punkt', quiet=True)
@@ -37,14 +38,18 @@ pymysql.install_as_MySQLdb()
 
 app = Flask(__name__)
 
-# Database configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URI')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(32))
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
-app.config['SESSION_COOKIE_SECURE'] = True
-app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+# Configuration
+class Config:
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URI')
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SECRET_KEY = os.getenv('SECRET_KEY', secrets.token_hex(32))
+    PERMANENT_SESSION_LIFETIME = timedelta(days=7)
+    SESSION_COOKIE_SECURE = True
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = 'Lax'
+    REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+
+app.config.from_object(Config)
 
 # Initialize SQLAlchemy
 db = SQLAlchemy(app)
@@ -56,20 +61,15 @@ formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 app.logger.addHandler(handler)
 
-# Initialize Redis for rate limiting
-redis_client = redis.Redis(
-    host=os.getenv('REDIS_HOST', 'localhost'),
-    port=int(os.getenv('REDIS_PORT', 6379)),
-    password=os.getenv('REDIS_PASSWORD', None),
-    db=int(os.getenv('REDIS_DB', 0))
-)
+# Initialize Redis
+redis_client = redis.from_url(app.config['REDIS_URL'])
 
-# Initialize Flask-Limiter with Redis storage
+# Initialize Flask-Limiter
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
-    storage_uri=f"redis://{os.getenv('REDIS_HOST', 'localhost')}:{os.getenv('REDIS_PORT', 6379)}/{os.getenv('REDIS_DB', 0)}",
-    storage_options={"password": os.getenv('REDIS_PASSWORD', None)}
+    storage_uri=app.config['REDIS_URL'],
+    strategy="fixed-window"  # or "moving-window"
 )
 
 # User Model
