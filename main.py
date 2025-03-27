@@ -64,11 +64,11 @@ class RateLimit(db.Model):
     expiry = db.Column(db.DateTime, nullable=False)              # When the limit expires
     request_count = db.Column(db.Integer, nullable=False, default=0)  # Use request_count as per database schema
 
-# Initialize Flask-Limiter with storage_uri for MySQL
+# Initialize Flask-Limiter with corrected storage_uri for MySQL
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
-    storage_uri=os.getenv('DATABASE_URI'),  # Use the same MySQL URI as SQLAlchemy
+    storage_uri="mysql+mysqlconnector://root:SyCBAbHXDzxlvZPyCVVpXKzrrFDXGkiH@centerbeam.proxy.rlwy.net:54259/railway",
     strategy="fixed-window",
     default_limits=["200 per day", "50 per hour"]
 )
