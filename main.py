@@ -18,7 +18,6 @@ import aiohttp
 from functools import lru_cache
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from flask_limiter.storage.sqlalchemy import SQLAlchemyStorage
 import logging
 from logging.handlers import RotatingFileHandler
 import secrets
@@ -57,14 +56,12 @@ formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 app.logger.addHandler(handler)
 
-# Create a separate engine for Flask-Limiter
-limiter_engine = create_engine(os.getenv('DATABASE_URI'))
-
-# Initialize Flask-Limiter with SQLAlchemy storage
+# Initialize Flask-Limiter with MySQL storage
+# Using storage_uri format that works with Flask-Limiter 3.x
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
-    storage=SQLAlchemyStorage(limiter_engine, table_name='rate_limits')
+    storage_uri="mysql+pymysql://" + os.getenv('DATABASE_URI').split('://')[1]
 )
 
 # User Model
