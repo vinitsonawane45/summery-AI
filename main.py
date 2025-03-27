@@ -25,7 +25,7 @@ from datetime import timedelta
 import bleach
 import pymysql
 from threading import Lock
-import redis
+from waitress import serve  # Added missing import
 
 # Initialize NLTK
 nltk.download('punkt', quiet=True)
@@ -45,7 +45,6 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['REDIS_URL'] = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
 
 # Initialize SQLAlchemy
 db = SQLAlchemy(app)
@@ -57,22 +56,19 @@ formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 app.logger.addHandler(handler)
 
-# Initialize Redis
-try:
-    redis_client = redis.from_url(app.config['REDIS_URL'])
-    redis_client.ping()  # Test connection
-except redis.ConnectionError:
-    app.logger.error("Failed to connect to Redis")
-    # Fallback to memory storage if Redis fails
-    limiter_storage = "memory://"
-else:
-    limiter_storage = app.config['REDIS_URL']
+# RateLimit Model for Flask-Limiter
+class RateLimit(db.Model):
+    __tablename__ = 'rate_limits'
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(255), nullable=False, unique=True)  # e.g., IP address
+    expiry = db.Column(db.DateTime, nullable=False)              # When the limit expires
+    count = db.Column(db.Integer, nullable=False, default=0)     # Number of requests made
 
-# Initialize Flask-Limiter
+# Initialize Flask-Limiter with SQLAlchemy storage
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
-    storage_uri=limiter_storage,
+    storage_uri=f"sqlalchemy://{app.config['SQLALCHEMY_DATABASE_URI']}",  # Use MySQL via SQLAlchemy
     strategy="fixed-window",
     default_limits=["200 per day", "50 per hour"]
 )
@@ -262,6 +258,7 @@ def home():
 @limiter.limit("5 per minute")
 def register():
     try:
+        app.logger.info(f"Processing request from IP: {get_remote_address()}")
         data = request.get_json()
         username = data.get('username')
         email = data.get('email')
@@ -288,6 +285,7 @@ def register():
         db.session.add(new_user)
         db.session.commit()
         
+        app.logger.info(f"User {username} registered successfully")
         return jsonify({'message': 'Registration successful'})
         
     except Exception as e:
@@ -298,6 +296,7 @@ def register():
 @limiter.limit("10 per minute")
 def login():
     try:
+        app.logger.info(f"Processing login request from IP: {get_remote_address()}")
         data = request.get_json()
         identifier = data.get('identifier')
         password = data.get('password')
@@ -312,6 +311,7 @@ def login():
         session['user_id'] = user.id
         session.permanent = True
         
+        app.logger.info(f"User {user.username} logged in successfully")
         return jsonify({
             'message': 'Login successful',
             'username': user.username,
@@ -326,6 +326,7 @@ def login():
 def logout():
     try:
         session.clear()
+        app.logger.info("User logged out successfully")
         return jsonify({'message': 'Logged out successfully'})
     except Exception as e:
         app.logger.error(f"Logout error: {str(e)}")
@@ -369,6 +370,7 @@ def update_preferences():
         user.preferences = summary_length
         db.session.commit()
         
+        app.logger.info(f"User {user.username} updated preferences to {summary_length}")
         return jsonify({'message': 'Preferences updated successfully'})
         
     except Exception as e:
@@ -379,6 +381,7 @@ def update_preferences():
 @limiter.limit("10 per minute")
 async def summarize():
     try:
+        app.logger.info(f"Processing summarize request from IP: {get_remote_address()}")
         if 'user_id' not in session and 'trial_used' in session:
             return jsonify({'error': 'Please register to continue using the service'}), 401
         
@@ -434,6 +437,7 @@ async def summarize():
 @limiter.limit("10 per minute")
 def analyze():
     try:
+        app.logger.info(f"Processing analyze request from IP: {get_remote_address()}")
         if 'user_id' not in session and 'trial_used' in session:
             return jsonify({'error': 'Please register to continue using the service'}), 401
             
@@ -460,6 +464,7 @@ def analyze():
 @limiter.limit("10 per minute")
 async def extract():
     try:
+        app.logger.info(f"Processing extract request from IP: {get_remote_address()}")
         if 'user_id' not in session and 'trial_used' in session:
             return jsonify({'error': 'Please register to continue using the service'}), 401
             
@@ -486,6 +491,7 @@ async def extract():
 @limiter.limit("10 per minute")
 def keywords():
     try:
+        app.logger.info(f"Processing keywords request from IP: {get_remote_address()}")
         if 'user_id' not in session and 'trial_used' in session:
             return jsonify({'error': 'Please register to continue using the service'}), 401
             
@@ -512,6 +518,7 @@ def keywords():
 @limiter.limit("10 per minute")
 def sentiment():
     try:
+        app.logger.info(f"Processing sentiment request from IP: {get_remote_address()}")
         if 'user_id' not in session and 'trial_used' in session:
             return jsonify({'error': 'Please register to continue using the service'}), 401
             
