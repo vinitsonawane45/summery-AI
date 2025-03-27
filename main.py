@@ -18,7 +18,7 @@ import aiohttp
 from functools import lru_cache
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from flask_limiter.extension import SQLAlchemyStorage  # Updated import path
+from flask_limiter.storage import SQLAlchemyStorage# Updated import path
 import logging
 from logging.handlers import RotatingFileHandler
 import secrets
