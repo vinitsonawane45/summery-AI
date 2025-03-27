@@ -26,8 +26,6 @@ import bleach
 import pymysql
 from threading import Lock
 from waitress import serve
-from limits.storage import Storage
-from limits.util import parse_many
 import time
 import sqlalchemy.exc
 from datetime import UTC
@@ -69,73 +67,11 @@ class RateLimit(db.Model):
     expiry = db.Column(db.DateTime, nullable=False)              # When the limit expires
     request_count = db.Column(db.Integer, nullable=False, default=0)  # Use request_count as per database schema
 
-# Custom SQLAlchemy Storage for Flask-Limiter
-class SQLAlchemyStorage(Storage):
-    def __init__(self, db):
-        self.db = db
-
-    def incr(self, key, expiry, elastic_expiry=False):
-        now = datetime.now(UTC)
-        with self.db.session.begin():
-            rate_limit = self.db.session.query(RateLimit).filter_by(key=key).first()
-            if not rate_limit:
-                rate_limit = RateLimit(
-                    key=key,
-                    expiry=now + timedelta(seconds=expiry),
-                    request_count=1
-                )
-                self.db.session.add(rate_limit)
-            else:
-                if rate_limit.expiry < now:
-                    rate_limit.expiry = now + timedelta(seconds=expiry)
-                    rate_limit.request_count = 1
-                else:
-                    rate_limit.request_count += 1
-            self.db.session.commit()
-        return rate_limit.request_count
-
-    def get(self, key):
-        now = datetime.now(UTC)
-        with self.db.session.begin():
-            rate_limit = self.db.session.query(RateLimit).filter_by(key=key).first()
-            if not rate_limit or rate_limit.expiry < now:
-                return 0
-            return rate_limit.request_count
-
-    def get_expiry(self, key):
-        now = datetime.now(UTC)
-        with self.db.session.begin():
-            rate_limit = self.db.session.query(RateLimit).filter_by(key=key).first()
-            if not rate_limit or rate_limit.expiry < now:
-                return now
-            return rate_limit.expiry
-
-    def check(self):
-        try:
-            with self.db.session.begin():
-                self.db.session.execute("SELECT 1")
-            return True
-        except sqlalchemy.exc.SQLAlchemyError:
-            return False
-
-    def reset(self):
-        with self.db.session.begin():
-            self.db.session.query(RateLimit).delete()
-            self.db.session.commit()
-
-    def clear(self, key):
-        with self.db.session.begin():
-            self.db.session.query(RateLimit).filter_by(key=key).delete()
-            self.db.session.commit()
-
-    def base_exceptions(self):
-        return (sqlalchemy.exc.SQLAlchemyError,)
-
-# Initialize Flask-Limiter with custom SQLAlchemy storage
+# Initialize Flask-Limiter with storage_uri for MySQL
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
-    storage=SQLAlchemyStorage(db),
+    storage_uri=os.getenv('DATABASE_URI'),  # Use the same MySQL URI as SQLAlchemy
     strategy="fixed-window",
     default_limits=["200 per day", "50 per hour"]
 )
