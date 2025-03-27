@@ -26,7 +26,11 @@ import bleach
 import pymysql
 from threading import Lock
 from waitress import serve
-from datetime import UTC  # Import UTC for timezone-aware datetime
+from limits.storage import Storage
+from limits.util import parse_many
+import time
+import sqlalchemy.exc
+from datetime import UTC
 
 # Initialize NLTK
 nltk.download('punkt', quiet=True)
@@ -57,7 +61,7 @@ formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 app.logger.addHandler(handler)
 
-# RateLimit Model for manual rate limiting
+# RateLimit Model for Flask-Limiter
 class RateLimit(db.Model):
     __tablename__ = 'rate_limits'
     id = db.Column(db.Integer, primary_key=True)
@@ -65,37 +69,76 @@ class RateLimit(db.Model):
     expiry = db.Column(db.DateTime, nullable=False)              # When the limit expires
     request_count = db.Column(db.Integer, nullable=False, default=0)  # Use request_count as per database schema
 
-# Initialize Flask-Limiter with memory storage (fallback)
+# Custom SQLAlchemy Storage for Flask-Limiter
+class SQLAlchemyStorage(Storage):
+    def __init__(self, db):
+        self.db = db
+
+    def incr(self, key, expiry, elastic_expiry=False):
+        now = datetime.now(UTC)
+        with self.db.session.begin():
+            rate_limit = self.db.session.query(RateLimit).filter_by(key=key).first()
+            if not rate_limit:
+                rate_limit = RateLimit(
+                    key=key,
+                    expiry=now + timedelta(seconds=expiry),
+                    request_count=1
+                )
+                self.db.session.add(rate_limit)
+            else:
+                if rate_limit.expiry < now:
+                    rate_limit.expiry = now + timedelta(seconds=expiry)
+                    rate_limit.request_count = 1
+                else:
+                    rate_limit.request_count += 1
+            self.db.session.commit()
+        return rate_limit.request_count
+
+    def get(self, key):
+        now = datetime.now(UTC)
+        with self.db.session.begin():
+            rate_limit = self.db.session.query(RateLimit).filter_by(key=key).first()
+            if not rate_limit or rate_limit.expiry < now:
+                return 0
+            return rate_limit.request_count
+
+    def get_expiry(self, key):
+        now = datetime.now(UTC)
+        with self.db.session.begin():
+            rate_limit = self.db.session.query(RateLimit).filter_by(key=key).first()
+            if not rate_limit or rate_limit.expiry < now:
+                return now
+            return rate_limit.expiry
+
+    def check(self):
+        try:
+            with self.db.session.begin():
+                self.db.session.execute("SELECT 1")
+            return True
+        except sqlalchemy.exc.SQLAlchemyError:
+            return False
+
+    def reset(self):
+        with self.db.session.begin():
+            self.db.session.query(RateLimit).delete()
+            self.db.session.commit()
+
+    def clear(self, key):
+        with self.db.session.begin():
+            self.db.session.query(RateLimit).filter_by(key=key).delete()
+            self.db.session.commit()
+
+    def base_exceptions(self):
+        return (sqlalchemy.exc.SQLAlchemyError,)
+
+# Initialize Flask-Limiter with custom SQLAlchemy storage
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
-    storage_uri="memory://",  # Use memory storage as a fallback
+    storage=SQLAlchemyStorage(db),
     strategy="fixed-window",
     default_limits=["200 per day", "50 per hour"]
 )
-
-# Manual rate limiting function
-def check_rate_limit(key, limit, period):
-    now = datetime.now(UTC)  # Use timezone-aware UTC datetime
-    with db.session.begin():
-        rate_limit = db.session.query(RateLimit).filter_by(key=key).first()
-        if not rate_limit:
-            rate_limit = RateLimit(
-                key=key,
-                expiry=now + timedelta(seconds=period),
-                request_count=1
-            )
-            db.session.add(rate_limit)
-        else:
-            if rate_limit.expiry < now:
-                rate_limit.expiry = now + timedelta(seconds=period)
-                rate_limit.request_count = 1
-            else:
-                if rate_limit.request_count >= limit:
-                    return False
-                rate_limit.request_count += 1
-        db.session.commit()
-    return True
 
 # User Model
 class User(db.Model):
@@ -282,13 +325,7 @@ def home():
 @limiter.limit("5 per minute")
 def register():
     try:
-        ip_address = get_remote_address()
-        app.logger.info(f"Processing request from IP: {ip_address}")
-        
-        # Manual rate limiting
-        if not check_rate_limit(f"register:{ip_address}", 5, 60):  # 5 requests per minute
-            return jsonify({'error': 'Rate limit exceeded: 5 per minute'}), 429
-
+        app.logger.info(f"Processing request from IP: {get_remote_address()}")
         data = request.get_json()
         username = data.get('username')
         email = data.get('email')
@@ -326,13 +363,7 @@ def register():
 @limiter.limit("10 per minute")
 def login():
     try:
-        ip_address = get_remote_address()
-        app.logger.info(f"Processing login request from IP: {ip_address}")
-        
-        # Manual rate limiting
-        if not check_rate_limit(f"login:{ip_address}", 10, 60):  # 10 requests per minute
-            return jsonify({'error': 'Rate limit exceeded: 10 per minute'}), 429
-
+        app.logger.info(f"Processing login request from IP: {get_remote_address()}")
         data = request.get_json()
         identifier = data.get('identifier')
         password = data.get('password')
@@ -417,51 +448,60 @@ def update_preferences():
 @limiter.limit("10 per minute")
 async def summarize():
     try:
-        ip_address = get_remote_address()
-        app.logger.info(f"Processing summarize request from IP: {ip_address}")
-        
-        # Manual rate limiting
-        if not check_rate_limit(f"summarize:{ip_address}", 10, 60):  # 10 requests per minute
-            return jsonify({'error': 'Rate limit exceeded: 10 per minute'}), 429
-
+        app.logger.info(f"Processing summarize request from IP: {get_remote_address()}")
         if 'user_id' not in session and 'trial_used' in session:
+            app.logger.warning("User not authenticated and trial already used")
             return jsonify({'error': 'Please register to continue using the service'}), 401
         
         max_length = 150
         if 'user_id' in session:
+            app.logger.debug("Fetching user preferences")
             user = User.query.get(session['user_id'])
             if user and user.preferences:
                 try:
                     max_length = int(user.preferences)
-                except ValueError:
+                    app.logger.debug(f"Set max_length to {max_length} based on user preferences")
+                except ValueError as e:
+                    app.logger.error(f"Invalid user preference value: {str(e)}")
                     pass
         
         text = ""
         if 'pdf_file' in request.files and request.files['pdf_file']:
+            app.logger.debug("Processing PDF file upload")
             try:
                 text = extract_text_from_pdf(request.files['pdf_file'])
+                app.logger.info(f"Extracted text from PDF (length: {len(text)})")
             except Exception as e:
+                app.logger.error(f"Failed to extract text from PDF: {str(e)}")
                 return jsonify({'error': str(e)}), 400
         else:
             text_input = request.form.get('text', '').strip()
             if text_input:
+                app.logger.debug(f"Received text input: {text_input[:50]}...")
                 if urlparse(text_input).scheme in ["http", "https"]:
+                    app.logger.debug(f"Fetching content from URL: {text_input}")
                     try:
                         text = await fetch_url_content(text_input)
+                        app.logger.info(f"Fetched content from URL (length: {len(text)})")
                     except Exception as e:
+                        app.logger.error(f"Failed to fetch URL content: {str(e)}")
                         return jsonify({'error': str(e)}), 400
                 else:
                     text = text_input
+                    app.logger.debug("Using provided text input directly")
         
         if not text or len(text.strip()) < 20:
+            app.logger.warning("Text too short for summarization")
             return jsonify({'error': 'No valid content to summarize (minimum 20 characters required)'}), 400
         
+        app.logger.debug("Starting summarization process")
         try:
             summary = summarize_text(text, max_length)
             app.logger.info(f"Generated summary (length: {len(summary)})")
             
             if 'user_id' not in session:
                 session['trial_used'] = True
+                app.logger.debug("Marked trial as used for unauthenticated user")
             
             return jsonify({
                 'summary': summary
@@ -473,19 +513,13 @@ async def summarize():
             
     except Exception as e:
         app.logger.error(f"Unexpected error in /summarize: {str(e)}")
-        return jsonify({'error': 'An unexpected error occurred'}), 500
+        return jsonify({'error': f"An unexpected error occurred: {str(e)}"}), 500
 
 @app.route('/analyze', methods=['POST'])
 @limiter.limit("10 per minute")
 def analyze():
     try:
-        ip_address = get_remote_address()
-        app.logger.info(f"Processing analyze request from IP: {ip_address}")
-        
-        # Manual rate limiting
-        if not check_rate_limit(f"analyze:{ip_address}", 10, 60):  # 10 requests per minute
-            return jsonify({'error': 'Rate limit exceeded: 10 per minute'}), 429
-
+        app.logger.info(f"Processing analyze request from IP: {get_remote_address()}")
         if 'user_id' not in session and 'trial_used' in session:
             return jsonify({'error': 'Please register to continue using the service'}), 401
             
@@ -512,13 +546,7 @@ def analyze():
 @limiter.limit("10 per minute")
 async def extract():
     try:
-        ip_address = get_remote_address()
-        app.logger.info(f"Processing extract request from IP: {ip_address}")
-        
-        # Manual rate limiting
-        if not check_rate_limit(f"extract:{ip_address}", 10, 60):  # 10 requests per minute
-            return jsonify({'error': 'Rate limit exceeded: 10 per minute'}), 429
-
+        app.logger.info(f"Processing extract request from IP: {get_remote_address()}")
         if 'user_id' not in session and 'trial_used' in session:
             return jsonify({'error': 'Please register to continue using the service'}), 401
             
@@ -545,13 +573,7 @@ async def extract():
 @limiter.limit("10 per minute")
 def keywords():
     try:
-        ip_address = get_remote_address()
-        app.logger.info(f"Processing keywords request from IP: {ip_address}")
-        
-        # Manual rate limiting
-        if not check_rate_limit(f"keywords:{ip_address}", 10, 60):  # 10 requests per minute
-            return jsonify({'error': 'Rate limit exceeded: 10 per minute'}), 429
-
+        app.logger.info(f"Processing keywords request from IP: {get_remote_address()}")
         if 'user_id' not in session and 'trial_used' in session:
             return jsonify({'error': 'Please register to continue using the service'}), 401
             
@@ -578,13 +600,7 @@ def keywords():
 @limiter.limit("10 per minute")
 def sentiment():
     try:
-        ip_address = get_remote_address()
-        app.logger.info(f"Processing sentiment request from IP: {ip_address}")
-        
-        # Manual rate limiting
-        if not check_rate_limit(f"sentiment:{ip_address}", 10, 60):  # 10 requests per minute
-            return jsonify({'error': 'Rate limit exceeded: 10 per minute'}), 429
-
+        app.logger.info(f"Processing sentiment request from IP: {get_remote_address()}")
         if 'user_id' not in session and 'trial_used' in session:
             return jsonify({'error': 'Please register to continue using the service'}), 401
             
