@@ -18,7 +18,6 @@ import aiohttp
 from functools import lru_cache
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from flask_limiter.storage.sqlalchemy import SQLAlchemyStorage
 import logging
 from logging.handlers import RotatingFileHandler
 import secrets
@@ -56,11 +55,11 @@ formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 app.logger.addHandler(handler)
 
-# Initialize Flask-Limiter with SQLAlchemy storage
+# Initialize Flask-Limiter with SQLAlchemy storage using storage_uri
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
-    storage=SQLAlchemyStorage(db.engine, table_name='rate_limits')
+    storage_uri=os.getenv('DATABASE_URI')
 )
 
 # User Model
@@ -80,16 +79,8 @@ with app.app_context():
 
 # Initialize T5 model
 model_lock = Lock()
-tokenizer = None
-model = None
-
-def load_models():
-    global tokenizer, model
-    with model_lock:
-        tokenizer = T5Tokenizer.from_pretrained("t5-small", legacy=False)
-        model = T5ForConditionalGeneration.from_pretrained("t5-small")
-
-load_models()
+tokenizer = T5Tokenizer.from_pretrained("t5-small", legacy=False)
+model = T5ForConditionalGeneration.from_pretrained("t5-small")
 
 # Text processing utilities
 sid = SentimentIntensityAnalyzer()
@@ -519,7 +510,7 @@ def sentiment():
         
         if 'user_id' not in session:
             session['trial_used'] = True
-            
+         
         return jsonify({
             'sentiment': sentiment
         })
