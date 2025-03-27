@@ -21,12 +21,15 @@ from flask_limiter.util import get_remote_address
 import logging
 from logging.handlers import RotatingFileHandler
 import secrets
-from datetime import timedelta
+from datetime import timedelta, datetime
 import bleach
 import pymysql
 from threading import Lock
 from waitress import serve
-from datetime import datetime, timedelta
+from limits.storage import Storage
+from limits.util import parse_many
+import time
+import sqlalchemy.exc
 
 # Initialize NLTK
 nltk.download('punkt', quiet=True)
@@ -57,45 +60,84 @@ formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 app.logger.addHandler(handler)
 
-# RateLimit Model for manual rate limiting
+# RateLimit Model for Flask-Limiter
 class RateLimit(db.Model):
     __tablename__ = 'rate_limits'
     id = db.Column(db.Integer, primary_key=True)
     key = db.Column(db.String(255), nullable=False, unique=True)  # e.g., IP address
     expiry = db.Column(db.DateTime, nullable=False)              # When the limit expires
-    count = db.Column(db.Integer, nullable=False, default=0)     # Number of requests made
+    request_count = db.Column(db.Integer, nullable=False, default=0)  # Renamed from 'count' to 'request_count'
 
-# Initialize Flask-Limiter with memory storage (fallback)
+# Custom SQLAlchemy Storage for Flask-Limiter
+class SQLAlchemyStorage(Storage):
+    def __init__(self, db):
+        self.db = db
+
+    def incr(self, key, expiry, elastic_expiry=False):
+        now = datetime.utcnow()
+        with self.db.session.begin():
+            rate_limit = self.db.session.query(RateLimit).filter_by(key=key).first()
+            if not rate_limit:
+                rate_limit = RateLimit(
+                    key=key,
+                    expiry=now + timedelta(seconds=expiry),
+                    request_count=1  # Updated to use request_count
+                )
+                self.db.session.add(rate_limit)
+            else:
+                if rate_limit.expiry < now:
+                    rate_limit.expiry = now + timedelta(seconds=expiry)
+                    rate_limit.request_count = 1  # Updated to use request_count
+                else:
+                    rate_limit.request_count += 1  # Updated to use request_count
+            self.db.session.commit()
+        return rate_limit.request_count  # Updated to use request_count
+
+    def get(self, key):
+        now = datetime.utcnow()
+        with self.db.session.begin():
+            rate_limit = self.db.session.query(RateLimit).filter_by(key=key).first()
+            if not rate_limit or rate_limit.expiry < now:
+                return 0
+            return rate_limit.request_count  # Updated to use request_count
+
+    def get_expiry(self, key):
+        now = datetime.utcnow()
+        with self.db.session.begin():
+            rate_limit = self.db.session.query(RateLimit).filter_by(key=key).first()
+            if not rate_limit or rate_limit.expiry < now:
+                return now
+            return rate_limit.expiry
+
+    def check(self):
+        try:
+            with self.db.session.begin():
+                self.db.session.execute("SELECT 1")
+            return True
+        except sqlalchemy.exc.SQLAlchemyError:
+            return False
+
+    def reset(self):
+        with self.db.session.begin():
+            self.db.session.query(RateLimit).delete()
+            self.db.session.commit()
+
+    def clear(self, key):
+        with self.db.session.begin():
+            self.db.session.query(RateLimit).filter_by(key=key).delete()
+            self.db.session.commit()
+
+    def base_exceptions(self):
+        return (sqlalchemy.exc.SQLAlchemyError,)
+
+# Initialize Flask-Limiter with custom SQLAlchemy storage
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
-    storage_uri="memory://",  # Use memory storage as a fallback
+    storage=SQLAlchemyStorage(db),
     strategy="fixed-window",
     default_limits=["200 per day", "50 per hour"]
 )
-
-# Manual rate limiting function
-def check_rate_limit(key, limit, period):
-    now = datetime.utcnow()
-    with db.session.begin():
-        rate_limit = db.session.query(RateLimit).filter_by(key=key).first()
-        if not rate_limit:
-            rate_limit = RateLimit(
-                key=key,
-                expiry=now + timedelta(seconds=period),
-                count=1
-            )
-            db.session.add(rate_limit)
-        else:
-            if rate_limit.expiry < now:
-                rate_limit.expiry = now + timedelta(seconds=period)
-                rate_limit.count = 1
-            else:
-                if rate_limit.count >= limit:
-                    return False
-                rate_limit.count += 1
-        db.session.commit()
-    return True
 
 # User Model
 class User(db.Model):
@@ -282,13 +324,7 @@ def home():
 @limiter.limit("5 per minute")
 def register():
     try:
-        ip_address = get_remote_address()
-        app.logger.info(f"Processing request from IP: {ip_address}")
-        
-        # Manual rate limiting
-        if not check_rate_limit(f"register:{ip_address}", 5, 60):  # 5 requests per minute
-            return jsonify({'error': 'Rate limit exceeded: 5 per minute'}), 429
-
+        app.logger.info(f"Processing request from IP: {get_remote_address()}")
         data = request.get_json()
         username = data.get('username')
         email = data.get('email')
@@ -326,13 +362,7 @@ def register():
 @limiter.limit("10 per minute")
 def login():
     try:
-        ip_address = get_remote_address()
-        app.logger.info(f"Processing login request from IP: {ip_address}")
-        
-        # Manual rate limiting
-        if not check_rate_limit(f"login:{ip_address}", 10, 60):  # 10 requests per minute
-            return jsonify({'error': 'Rate limit exceeded: 10 per minute'}), 429
-
+        app.logger.info(f"Processing login request from IP: {get_remote_address()}")
         data = request.get_json()
         identifier = data.get('identifier')
         password = data.get('password')
@@ -417,13 +447,7 @@ def update_preferences():
 @limiter.limit("10 per minute")
 async def summarize():
     try:
-        ip_address = get_remote_address()
-        app.logger.info(f"Processing summarize request from IP: {ip_address}")
-        
-        # Manual rate limiting
-        if not check_rate_limit(f"summarize:{ip_address}", 10, 60):  # 10 requests per minute
-            return jsonify({'error': 'Rate limit exceeded: 10 per minute'}), 429
-
+        app.logger.info(f"Processing summarize request from IP: {get_remote_address()}")
         if 'user_id' not in session and 'trial_used' in session:
             return jsonify({'error': 'Please register to continue using the service'}), 401
         
@@ -479,13 +503,7 @@ async def summarize():
 @limiter.limit("10 per minute")
 def analyze():
     try:
-        ip_address = get_remote_address()
-        app.logger.info(f"Processing analyze request from IP: {ip_address}")
-        
-        # Manual rate limiting
-        if not check_rate_limit(f"analyze:{ip_address}", 10, 60):  # 10 requests per minute
-            return jsonify({'error': 'Rate limit exceeded: 10 per minute'}), 429
-
+        app.logger.info(f"Processing analyze request from IP: {get_remote_address()}")
         if 'user_id' not in session and 'trial_used' in session:
             return jsonify({'error': 'Please register to continue using the service'}), 401
             
@@ -512,13 +530,7 @@ def analyze():
 @limiter.limit("10 per minute")
 async def extract():
     try:
-        ip_address = get_remote_address()
-        app.logger.info(f"Processing extract request from IP: {ip_address}")
-        
-        # Manual rate limiting
-        if not check_rate_limit(f"extract:{ip_address}", 10, 60):  # 10 requests per minute
-            return jsonify({'error': 'Rate limit exceeded: 10 per minute'}), 429
-
+        app.logger.info(f"Processing extract request from IP: {get_remote_address()}")
         if 'user_id' not in session and 'trial_used' in session:
             return jsonify({'error': 'Please register to continue using the service'}), 401
             
@@ -545,13 +557,7 @@ async def extract():
 @limiter.limit("10 per minute")
 def keywords():
     try:
-        ip_address = get_remote_address()
-        app.logger.info(f"Processing keywords request from IP: {ip_address}")
-        
-        # Manual rate limiting
-        if not check_rate_limit(f"keywords:{ip_address}", 10, 60):  # 10 requests per minute
-            return jsonify({'error': 'Rate limit exceeded: 10 per minute'}), 429
-
+        app.logger.info(f"Processing keywords request from IP: {get_remote_address()}")
         if 'user_id' not in session and 'trial_used' in session:
             return jsonify({'error': 'Please register to continue using the service'}), 401
             
@@ -578,13 +584,7 @@ def keywords():
 @limiter.limit("10 per minute")
 def sentiment():
     try:
-        ip_address = get_remote_address()
-        app.logger.info(f"Processing sentiment request from IP: {ip_address}")
-        
-        # Manual rate limiting
-        if not check_rate_limit(f"sentiment:{ip_address}", 10, 60):  # 10 requests per minute
-            return jsonify({'error': 'Rate limit exceeded: 10 per minute'}), 429
-
+        app.logger.info(f"Processing sentiment request from IP: {get_remote_address()}")
         if 'user_id' not in session and 'trial_used' in session:
             return jsonify({'error': 'Please register to continue using the service'}), 401
             
