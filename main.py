@@ -30,6 +30,7 @@ from limits.storage import Storage
 from limits.util import parse_many
 from datetime import datetime
 import time
+import sqlalchemy.exc  # Added for SQLAlchemy exceptions
 
 # Initialize NLTK
 nltk.download('punkt', quiet=True)
@@ -110,7 +111,12 @@ class SQLAlchemyStorage(Storage):
             return rate_limit.expiry
 
     def check(self):
-        return True  # Assume database is always available
+        try:
+            with self.db.session.begin():
+                self.db.session.execute("SELECT 1")
+            return True
+        except sqlalchemy.exc.SQLAlchemyError:
+            return False
 
     def reset(self):
         with self.db.session.begin():
@@ -121,6 +127,9 @@ class SQLAlchemyStorage(Storage):
         with self.db.session.begin():
             self.db.session.query(RateLimit).filter_by(key=key).delete()
             self.db.session.commit()
+
+    def base_exceptions(self):
+        return (sqlalchemy.exc.SQLAlchemyError,)
 
 # Initialize Flask-Limiter with custom SQLAlchemy storage
 limiter = Limiter(
