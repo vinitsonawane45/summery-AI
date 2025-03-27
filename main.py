@@ -1,4 +1,3 @@
-
 from flask import Flask, request, jsonify, session, render_template
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -19,6 +18,7 @@ import aiohttp
 from functools import lru_cache
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_limiter.storage.sqlalchemy import SQLAlchemyStorage
 import logging
 from logging.handlers import RotatingFileHandler
 import secrets
@@ -26,6 +26,7 @@ from datetime import timedelta
 import bleach
 import pymysql
 from threading import Lock
+from sqlalchemy import create_engine
 
 # Initialize NLTK
 nltk.download('punkt', quiet=True)
@@ -56,11 +57,14 @@ formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 app.logger.addHandler(handler)
 
-# Initialize Flask-Limiter with storage_uri (no direct SQLAlchemyStorage import needed)
+# Create a separate engine for Flask-Limiter
+limiter_engine = create_engine(os.getenv('DATABASE_URI'))
+
+# Initialize Flask-Limiter with SQLAlchemy storage
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
-    storage_uri=os.getenv('DATABASE_URI')  # Uses same database as SQLAlchemy
+    storage=SQLAlchemyStorage(limiter_engine, table_name='rate_limits')
 )
 
 # User Model
