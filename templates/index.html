@@ -1768,8 +1768,7 @@
 </html>
  -->
 
-
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -2360,8 +2359,36 @@
                 updateNavForLogin();
                 updateActiveNavLink();
                 if (state.isLoggedIn) {
-                    updateProfileUI();
+                    verifyAuthStatus();
                 }
+            }
+
+            function verifyAuthStatus() {
+                console.log('Verifying authentication status with backend...');
+                $.ajax({
+                    url: '/profile',
+                    method: 'GET',
+                    xhrFields: { withCredentials: true },
+                    success: (response) => {
+                        if (response.error) {
+                            console.log('User not authenticated on backend:', response.error);
+                            resetState();
+                            updateUIAfterLogout();
+                            return;
+                        }
+                        console.log('User authenticated on backend:', response);
+                        state.username = response.username;
+                        state.preferences = response.preferences || '150';
+                        localStorage.setItem('username', state.username);
+                        localStorage.setItem('preferences', state.preferences);
+                        updateProfileUI();
+                    },
+                    error: (xhr) => {
+                        console.log('Error verifying auth status:', xhr.responseJSON?.error || 'Unknown error');
+                        resetState();
+                        updateUIAfterLogout();
+                    }
+                });
             }
 
             initUI();
@@ -2403,6 +2430,7 @@
                     method: 'POST',
                     contentType: 'application/json',
                     data: JSON.stringify(data),
+                    xhrFields: { withCredentials: true },
                     success: (response) => {
                         if (response.error) {
                             showStatus('register', response.error, true);
@@ -2449,6 +2477,7 @@
                     method: 'POST',
                     contentType: 'application/json',
                     data: JSON.stringify(data),
+                    xhrFields: { withCredentials: true },
                     success: (response) => {
                         if (response.error) {
                             showStatus('login', response.error, true);
@@ -2490,6 +2519,7 @@
                     method: 'POST',
                     contentType: 'application/json',
                     data: JSON.stringify({ summary_length: summaryLength }),
+                    xhrFields: { withCredentials: true },
                     success: (response) => {
                         if (response.error) {
                             showStatus('profile', response.error, true);
@@ -2522,20 +2552,24 @@
                     contentType: 'application/json',
                     data: JSON.stringify({}),
                     timeout: 5000,
+                    xhrFields: { withCredentials: true },
                     success: (response) => {
+                        console.log('Logout response:', response);
                         if (response.success !== undefined && !response.success) {
                             showStatus('profile', response.error || 'Logout failed.', true);
                             return;
                         }
-                        // Reset state and local storage
                         resetState();
-                        // Update UI and show success message
                         updateUIAfterLogout();
                     },
                     error: (xhr) => {
+                        console.log('Logout error:', xhr.responseJSON?.error || 'Unknown error');
                         let errorMsg = 'Logout failed. Please try again.';
                         if (xhr.status === 0) {
                             errorMsg = 'Network error. Please check your connection.';
+                            // Assume logout might have succeeded on the backend
+                            resetState();
+                            updateUIAfterLogout();
                         } else if (xhr.responseJSON?.error) {
                             errorMsg = xhr.responseJSON.error;
                         }
@@ -2716,6 +2750,7 @@
                     contentType: contentType,
                     processData: processData,
                     data: contentType === 'application/json' ? JSON.stringify(data) : data,
+                    xhrFields: { withCredentials: true },
                     success: (response) => {
                         if (response.error) {
                             showStatus(type, response.error, true);
