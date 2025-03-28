@@ -631,6 +631,8 @@
 #     # Production server
 #     serve(app, host='0.0.0.0', port=5000)
 
+
+
 from flask import Flask, request, jsonify, session, render_template
 from flask_sqlalchemy import SQLAlchemy
 from transformers import T5ForConditionalGeneration, T5Tokenizer
@@ -711,7 +713,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password = db.Column(db.String(255), nullable=False)  # Storing plain text password
+    password = db.Column(db.String(255), nullable=False)
     preferences = db.Column(db.String(50), default='150')
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
@@ -946,22 +948,29 @@ def register():
         if User.query.filter_by(email=email).first():
             return jsonify({'error': 'Email already registered'}), 400
             
-        # Store plain text password (not recommended for production)
         new_user = User(
             username=username,
             email=email,
-            password=password  # Storing plain text
+            password=password
         )
         
         db.session.add(new_user)
         db.session.commit()
         
-        app.logger.info(f"User {username} registered successfully")
-        return jsonify({'message': 'Registration successful'}), 201
+        # Automatically log in the user after registration
+        session['user_id'] = new_user.id
+        session.permanent = True
+        
+        app.logger.info(f"User {username} registered and logged in successfully")
+        return jsonify({
+            'message': 'Registration and login successful',
+            'username': new_user.username,
+            'preferences': new_user.preferences
+        }), 201
         
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f"Registration error: {str(e)}")
+        app.logger.error(f"Registration error: {str(e)}", exc_info=True)
         return jsonify({'error': 'Registration failed. Please try again.'}), 500
 
 @app.route('/login', methods=['POST'])
@@ -985,7 +994,8 @@ def login():
             return jsonify({'error': 'Username/email and password are required'}), 400
             
         user = User.query.filter((User.username == identifier) | (User.email == identifier)).first()
-        if not user or user.password != password:  # Direct password comparison
+        if not user or user.password != password:
+            app.logger.warning(f"Failed login attempt for {identifier}")
             return jsonify({'error': 'Invalid credentials'}), 401
             
         session['user_id'] = user.id
@@ -999,7 +1009,7 @@ def login():
         })
         
     except Exception as e:
-        app.logger.error(f"Login error: {str(e)}")
+        app.logger.error(f"Login error: {str(e)}", exc_info=True)
         return jsonify({'error': 'Login failed. Please try again.'}), 500
 
 @app.route('/logout', methods=['POST'])
