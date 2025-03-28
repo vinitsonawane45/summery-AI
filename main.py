@@ -633,7 +633,6 @@
 
 from flask import Flask, request, jsonify, session, render_template
 from flask_sqlalchemy import SQLAlchemy
-from werkzeug.security import generate_password_hash, check_password_hash
 from transformers import T5ForConditionalGeneration, T5Tokenizer
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
@@ -654,7 +653,7 @@ from flask_limiter.util import get_remote_address
 import logging
 from logging.handlers import RotatingFileHandler
 import secrets
-from datetime import timedelta, datetime, timezone
+from datetime import timedelta, datetime, UTC
 import bleach
 import pymysql
 from threading import Lock
@@ -670,7 +669,7 @@ pymysql.install_as_MySQLdb()
 
 app = Flask(__name__)
 
-# Configuration - Ensure these are in your .env file
+# Configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URI', 'sqlite:///summarizer.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(32))
@@ -689,7 +688,7 @@ formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 app.logger.addHandler(handler)
 
-# RateLimit Model
+# RateLimit Model for manual rate limiting
 class RateLimit(db.Model):
     __tablename__ = 'rate_limits'
     id = db.Column(db.Integer, primary_key=True)
@@ -697,13 +696,22 @@ class RateLimit(db.Model):
     expiry = db.Column(db.DateTime, nullable=False)
     request_count = db.Column(db.Integer, nullable=False, default=0)
 
-# User Model
+# Initialize Flask-Limiter with memory storage (fallback)
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    storage_uri="memory://",
+    strategy="fixed-window",
+    default_limits=["200 per day", "50 per hour"]
+)
+
+# User Model with plain text password
 class User(db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password = db.Column(db.String(255), nullable=False)
+    password = db.Column(db.String(255), nullable=False)  # Storing plain text password
     preferences = db.Column(db.String(50), default='150')
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
@@ -721,36 +729,27 @@ model = T5ForConditionalGeneration.from_pretrained("t5-small")
 sid = SentimentIntensityAnalyzer()
 stop_words = set(stopwords.words('english'))
 
-# Initialize Flask-Limiter
-limiter = Limiter(
-    app=app,
-    key_func=get_remote_address,
-    storage_uri="memory://",
-    strategy="fixed-window",
-    default_limits=["200 per day", "50 per hour"]
-)
-
 def check_rate_limit(key, limit, period):
-    now = datetime.now(timezone.utc)
-    rate_limit = RateLimit.query.filter_by(key=key).first()
-    
-    if not rate_limit:
-        rate_limit = RateLimit(
-            key=key,
-            expiry=now + timedelta(seconds=period),
-            request_count=1
-        )
-        db.session.add(rate_limit)
-    else:
-        if rate_limit.expiry.replace(tzinfo=timezone.utc) < now:
-            rate_limit.expiry = now + timedelta(seconds=period)
-            rate_limit.request_count = 1
+    now = datetime.now(UTC)
+    with db.session.begin():
+        rate_limit = db.session.query(RateLimit).filter_by(key=key).first()
+        if not rate_limit:
+            rate_limit = RateLimit(
+                key=key,
+                expiry=now + timedelta(seconds=period),
+                request_count=1
+            )
+            db.session.add(rate_limit)
         else:
-            if rate_limit.request_count >= limit:
-                return False
-            rate_limit.request_count += 1
-    
-    db.session.commit()
+            expiry_aware = rate_limit.expiry.replace(tzinfo=UTC) if rate_limit.expiry.tzinfo is None else rate_limit.expiry
+            if expiry_aware < now:
+                rate_limit.expiry = now + timedelta(seconds=period)
+                rate_limit.request_count = 1
+            else:
+                if rate_limit.request_count >= limit:
+                    return False
+                rate_limit.request_count += 1
+        db.session.commit()
     return True
 
 @lru_cache(maxsize=128)
@@ -826,7 +825,6 @@ def extract_text_from_pdf(pdf_file):
         if not pdf_file or not pdf_file.filename.lower().endswith('.pdf'):
             raise ValueError("Invalid file type. Only PDFs are accepted.")
             
-        # Save the file to a temporary location
         temp_file = BytesIO()
         pdf_file.save(temp_file)
         temp_file.seek(0)
@@ -834,10 +832,10 @@ def extract_text_from_pdf(pdf_file):
         reader = PyPDF2.PdfReader(temp_file)
         text = ""
         
-        for page in reader.pages[:5]:  # Limit to first 5 pages
+        for page in reader.pages[:5]:
             page_text = page.extract_text() or ""
             text += page_text + "\n"
-            if len(text) > 3000:  # Limit text length
+            if len(text) > 3000:
                 break
                 
         if not text.strip():
@@ -854,7 +852,6 @@ def analyze_text(text):
         if not text or len(text.strip()) < 10:
             raise ValueError("Text too short for analysis")
             
-        # Clean the text first
         clean_text = re.sub(r'[^\w\s]', '', text)
         
         words = word_tokenize(clean_text)
@@ -883,7 +880,6 @@ def extract_keywords(text, top_n=10):
         if not text or len(text.strip()) < 10:
             raise ValueError("Text too short for keyword extraction")
             
-        # Clean the text first
         clean_text = re.sub(r'[^\w\s]', '', text.lower())
         words = word_tokenize(clean_text)
         words = [word for word in words if word.isalpha() and word not in stop_words and len(word) > 2]
@@ -921,88 +917,87 @@ def home():
     return render_template('index.html')
 
 @app.route('/register', methods=['POST'])
+@limiter.limit("5 per minute")
 def register():
     try:
+        ip_address = get_remote_address()
+        app.logger.info(f"Processing request from IP: {ip_address}")
+        
+        if not check_rate_limit(f"register:{ip_address}", 5, 60):
+            return jsonify({'error': 'Rate limit exceeded: 5 per minute'}), 429
+
         data = request.get_json()
         if not data:
             return jsonify({'error': 'No data provided'}), 400
-
-        username = data.get('username', '').strip()
-        email = data.get('email', '').strip()
-        password = data.get('password', '').strip()
-
-        # Validation
+            
+        username = data.get('username')
+        email = data.get('email')
+        password = data.get('password')
+        
         if not username or len(username) < 3:
             return jsonify({'error': 'Username must be at least 3 characters'}), 400
         if not email or '@' not in email:
             return jsonify({'error': 'Invalid email address'}), 400
-        if not password or len(password) < 8:
-            return jsonify({'error': 'Password must be at least 8 characters'}), 400
-
-        # Check if user already exists
+        if not password or len(password) < 5:
+            return jsonify({'error': 'Password must be at least 5 characters'}), 400
+            
         if User.query.filter_by(username=username).first():
-            return jsonify({'error': 'Username already exists'}), 409
+            return jsonify({'error': 'Username already exists'}), 400
         if User.query.filter_by(email=email).first():
-            return jsonify({'error': 'Email already registered'}), 409
-
-        # Create new user
-        hashed_password = generate_password_hash(password)
+            return jsonify({'error': 'Email already registered'}), 400
+            
+        # Store plain text password (not recommended for production)
         new_user = User(
             username=username,
             email=email,
-            password=hashed_password
+            password=password  # Storing plain text
         )
-
+        
         db.session.add(new_user)
         db.session.commit()
-
-        # Log the user in automatically
-        session['user_id'] = new_user.id
-        session.permanent = True
-
-        return jsonify({
-            'message': 'Registration successful',
-            'username': new_user.username,
-            'preferences': new_user.preferences
-        }), 201
-
+        
+        app.logger.info(f"User {username} registered successfully")
+        return jsonify({'message': 'Registration successful'}), 201
+        
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"Registration error: {str(e)}")
         return jsonify({'error': 'Registration failed. Please try again.'}), 500
 
 @app.route('/login', methods=['POST'])
+@limiter.limit("10 per minute")
 def login():
     try:
+        ip_address = get_remote_address()
+        app.logger.info(f"Processing login request from IP: {ip_address}")
+        
+        if not check_rate_limit(f"login:{ip_address}", 10, 60):
+            return jsonify({'error': 'Rate limit exceeded: 10 per minute'}), 429
+
         data = request.get_json()
         if not data:
             return jsonify({'error': 'No data provided'}), 400
-
-        identifier = data.get('identifier', '').strip()
-        password = data.get('password', '').strip()
-
+            
+        identifier = data.get('identifier')
+        password = data.get('password')
+        
         if not identifier or not password:
             return jsonify({'error': 'Username/email and password are required'}), 400
-
-        # Find user by username or email
-        user = User.query.filter(
-            (User.username == identifier) | 
-            (User.email == identifier)
-        ).first()
-
-        if not user or not check_password_hash(user.password, password):
+            
+        user = User.query.filter((User.username == identifier) | (User.email == identifier)).first()
+        if not user or user.password != password:  # Direct password comparison
             return jsonify({'error': 'Invalid credentials'}), 401
-
-        # Set session
+            
         session['user_id'] = user.id
         session.permanent = True
-
+        
+        app.logger.info(f"User {user.username} logged in successfully")
         return jsonify({
             'message': 'Login successful',
             'username': user.username,
             'preferences': user.preferences
         })
-
+        
     except Exception as e:
         app.logger.error(f"Login error: {str(e)}")
         return jsonify({'error': 'Login failed. Please try again.'}), 500
@@ -1011,6 +1006,7 @@ def login():
 def logout():
     try:
         session.clear()
+        app.logger.info("User logged out successfully")
         return jsonify({'message': 'Logged out successfully'})
     except Exception as e:
         app.logger.error(f"Logout error: {str(e)}")
@@ -1028,7 +1024,6 @@ def profile():
             
         return jsonify({
             'username': user.username,
-            'email': user.email,
             'preferences': user.preferences
         })
         
@@ -1058,6 +1053,7 @@ def update_preferences():
         user.preferences = summary_length
         db.session.commit()
         
+        app.logger.info(f"User {user.username} updated preferences to {summary_length}")
         return jsonify({'message': 'Preferences updated successfully'})
         
     except Exception as e:
@@ -1069,7 +1065,14 @@ def update_preferences():
 @limiter.limit("10 per minute")
 async def summarize():
     try:
+        ip_address = get_remote_address()
+        app.logger.info(f"Processing summarize request from IP: {ip_address}")
+        
+        if not check_rate_limit(f"summarize:{ip_address}", 10, 60):
+            return jsonify({'error': 'Rate limit exceeded: 10 per minute'}), 429
+
         if 'user_id' not in session and 'trial_used' in session:
+            app.logger.warning("User not authenticated and trial already used")
             return jsonify({'error': 'Please register to continue using the service'}), 401
         
         max_length = 150
@@ -1107,18 +1110,28 @@ async def summarize():
             if 'user_id' not in session:
                 session['trial_used'] = True
             
-            return jsonify({'summary': summary})
+            return jsonify({
+                'summary': summary
+            })
             
         except Exception as e:
+            app.logger.error(f"Summarization failed: {str(e)}")
             return jsonify({'error': str(e)}), 500
             
     except Exception as e:
+        app.logger.error(f"Unexpected error in /summarize: {str(e)}")
         return jsonify({'error': f"An unexpected error occurred: {str(e)}"}), 500
 
 @app.route('/analyze', methods=['POST'])
 @limiter.limit("10 per minute")
 def analyze():
     try:
+        ip_address = get_remote_address()
+        app.logger.info(f"Processing analyze request from IP: {ip_address}")
+        
+        if not check_rate_limit(f"analyze:{ip_address}", 10, 60):
+            return jsonify({'error': 'Rate limit exceeded: 10 per minute'}), 429
+
         if 'user_id' not in session and 'trial_used' in session:
             return jsonify({'error': 'Please register to continue using the service'}), 401
             
@@ -1136,15 +1149,24 @@ def analyze():
         if 'user_id' not in session:
             session['trial_used'] = True
             
-        return jsonify({'analysis': analysis})
+        return jsonify({
+            'analysis': analysis
+        })
         
     except Exception as e:
+        app.logger.error(f"Analysis error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/extract', methods=['POST'])
 @limiter.limit("10 per minute")
 async def extract():
     try:
+        ip_address = get_remote_address()
+        app.logger.info(f"Processing extract request from IP: {ip_address}")
+        
+        if not check_rate_limit(f"extract:{ip_address}", 10, 60):
+            return jsonify({'error': 'Rate limit exceeded: 10 per minute'}), 429
+
         if 'user_id' not in session and 'trial_used' in session:
             return jsonify({'error': 'Please register to continue using the service'}), 401
             
@@ -1162,15 +1184,24 @@ async def extract():
         if 'user_id' not in session:
             session['trial_used'] = True
             
-        return jsonify({'content': content})
+        return jsonify({
+            'content': content
+        })
         
     except Exception as e:
+        app.logger.error(f"Extraction error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/keywords', methods=['POST'])
 @limiter.limit("10 per minute")
 def keywords():
     try:
+        ip_address = get_remote_address()
+        app.logger.info(f"Processing keywords request from IP: {ip_address}")
+        
+        if not check_rate_limit(f"keywords:{ip_address}", 10, 60):
+            return jsonify({'error': 'Rate limit exceeded: 10 per minute'}), 429
+
         if 'user_id' not in session and 'trial_used' in session:
             return jsonify({'error': 'Please register to continue using the service'}), 401
             
@@ -1188,15 +1219,24 @@ def keywords():
         if 'user_id' not in session:
             session['trial_used'] = True
             
-        return jsonify({'keywords': keywords})
+        return jsonify({
+            'keywords': keywords
+        })
         
     except Exception as e:
+        app.logger.error(f"Keyword extraction error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/sentiment', methods=['POST'])
 @limiter.limit("10 per minute")
 def sentiment():
     try:
+        ip_address = get_remote_address()
+        app.logger.info(f"Processing sentiment request from IP: {ip_address}")
+        
+        if not check_rate_limit(f"sentiment:{ip_address}", 10, 60):
+            return jsonify({'error': 'Rate limit exceeded: 10 per minute'}), 429
+
         if 'user_id' not in session and 'trial_used' in session:
             return jsonify({'error': 'Please register to continue using the service'}), 401
             
@@ -1214,9 +1254,12 @@ def sentiment():
         if 'user_id' not in session:
             session['trial_used'] = True
             
-        return jsonify({'sentiment': sentiment})
+        return jsonify({
+            'sentiment': sentiment
+        })
         
     except Exception as e:
+        app.logger.error(f"Sentiment analysis error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/dashboard')
