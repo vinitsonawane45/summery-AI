@@ -834,7 +834,7 @@
 </html> 
  -->
 
-
+<!-- 
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1632,6 +1632,990 @@
                 $('#usernameDisplay').text(state.username);
                 $('#joinDate').text(state.joinDate);
                 $('#summaryLength').val(state.preferences);
+            }
+
+            function showLoading(type) {
+                $(`#${type}Btn`).prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Processing...');
+                $(`#${type}Spinner`).show();
+                $(`#${type}Status`).hide().text('').removeClass('error success');
+                $(`#${type}Summary, #${type}Analysis, #${type}Content, #${type}Output`).text('');
+            }
+
+            function hideLoading(type) {
+                $(`#${type}Btn`).prop('disabled', false).text(type === 'pdf' ? 'Summarize' : type === 'text' ? 'Analyze' : type === 'url' ? 'Extract' : type === 'keyword' ? 'Extract Keywords' : type === 'sentiment' ? 'Analyze Sentiment' : type === 'register' ? 'Sign Up' : type === 'login' ? 'Login' : 'Save Preferences');
+                $(`#${type}Spinner`).hide();
+            }
+
+            function showStatus(type, message, isError = false) {
+                const $status = $(`#${type}Status`);
+                $status
+                    .text(message)
+                    .removeClass('error success')
+                    .addClass(isError ? 'error' : 'success')
+                    .show();
+                setTimeout(() => $status.fadeOut(), 5000);
+            }
+
+            function validateForm(data, requiredFields) {
+                for (const field of requiredFields) {
+                    if (!data[field]) {
+                        showStatus(state.activeSection.split('Section')[0], `${field.charAt(0).toUpperCase() + field.slice(1)} is required!`, true);
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            function getPdfData() {
+                const pdfFile = $('#pdfUpload')[0].files[0];
+                if (!pdfFile) {
+                    showStatus('pdf', 'Please upload a PDF file!', true);
+                    return null;
+                }
+                const formData = new FormData();
+                formData.append('pdf_file', pdfFile);
+                return { data: formData, contentType: false, processData: false };
+            }
+
+            function getTextData() {
+                const text = $('#textInput').val().trim();
+                if (!text) {
+                    showStatus('text', 'Please enter text to analyze!', true);
+                    return null;
+                }
+                return { data: { text: text } };
+            }
+
+            function getUrlData() {
+                const url = $('#urlInput').val().trim();
+                if (!url) {
+                    showStatus('url', 'Please enter a URL!', true);
+                    return null;
+                }
+                return { data: { url: url } };
+            }
+
+            function getKeywordData() {
+                const text = $('#keywordInput').val().trim();
+                if (!text) {
+                    showStatus('keyword', 'Please enter text for keyword extraction!', true);
+                    return null;
+                }
+                return { data: { text: text } };
+            }
+
+            function getSentimentData() {
+                const text = $('#sentimentInput').val().trim();
+                if (!text) {
+                    showStatus('sentiment', 'Please enter text for sentiment analysis!', true);
+                    return null;
+                }
+                return { data: { text: text } };
+            }
+
+            function processToolRequest(url, type, getDataFn) {
+                if (!state.isLoggedIn && state.hasUsedTrial) {
+                    showSection('loginForm');
+                    showStatus('login', 'Please login or register to continue!', true);
+                    return;
+                }
+
+                const result = getDataFn();
+                if (!result) return;
+
+                const { data, contentType = 'application/json', processData = true } = result;
+                showLoading(type);
+
+                $.ajax({
+                    url: url,
+                    method: 'POST',
+                    contentType: contentType,
+                    processData: processData,
+                    data: contentType === 'application/json' ? JSON.stringify(data) : data,
+                    success: (response) => {
+                        if (response.error) {
+                            showStatus(type, response.error, true);
+                            return;
+                        }
+                        if (url === '/summarize') {
+                            $('#pdfSummary').text(response.summary);
+                        } else if (url === '/analyze') {
+                            $('#textAnalysis').text(JSON.stringify(response.analysis, null, 2));
+                        } else if (url === '/extract') {
+                            $('#urlContent').text(response.content);
+                        } else if (url === '/keywords') {
+                            $('#keywordOutput').text(response.keywords.join(', '));
+                        } else if (url === '/sentiment') {
+                            $('#sentimentOutput').text(JSON.stringify(response.sentiment, null, 2));
+                        }
+                        showStatus(type, 'Operation completed successfully!', false);
+
+                        if (!state.isLoggedIn) {
+                            state.hasUsedTrial = true;
+                            localStorage.setItem('hasUsedTrial', 'true');
+                            updateTrialUI();
+                        }
+                    },
+                    error: (xhr) => {
+                        showStatus(type, xhr.responseJSON?.error || 'An error occurred. Please try again.', true);
+                    },
+                    complete: () => hideLoading(type)
+                });
+            }
+        });
+    </script>
+</body>
+</html>
+ -->
+
+
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Saransh AI - Advanced Text Suite</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #00a8a8;
+            --secondary: #00c4c4;
+            --background: #f4f7fa;
+            --card-bg: #ffffff;
+            --text: #2d3748;
+            --text-light: #718096;
+            --border: #e2e8f0;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            --accent: #f6e05e;
+            --error: #e53e3e;
+            --success: #38a169;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: var(--background);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .navbar {
+            background: var(--card-bg);
+            padding: 1rem;
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            align-items: center;
+            gap: 1rem;
+            transition: background-color 0.3s ease;
+        }
+
+        .navbar .logo {
+            font-size: clamp(1.25rem, 4vw, 1.75rem);
+            font-weight: 700;
+            color: var(--primary);
+            letter-spacing: -0.5px;
+        }
+
+        .hamburger {
+            display: block;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--text);
+            cursor: pointer;
+            padding: 0.5rem;
+            transition: color 0.3s ease;
+        }
+
+        .nav-links {
+            display: none;
+            position: fixed;
+            top: 60px;
+            left: 0;
+            width: 100%;
+            background: var(--card-bg);
+            flex-direction: column;
+            padding: 1rem;
+            box-shadow: var(--shadow);
+            transform: translateY(-100%);
+            transition: transform 0.3s ease, background-color 0.3s ease;
+            z-index: 999;
+        }
+
+        .nav-links.active {
+            display: flex;
+            transform: translateY(0);
+        }
+
+        .nav-links a, .nav-links button {
+            color: var(--text-light);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1rem;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            background: none;
+            border: none;
+            cursor: pointer;
+            width: 100%;
+            text-align: left;
+        }
+
+        .nav-links a:hover, .nav-links button:hover {
+            color: var(--primary);
+            background: rgba(0, 168, 168, 0.1);
+        }
+
+        .nav-links .active-link {
+            color: var(--primary);
+            background: rgba(0, 168, 168, 0.15);
+        }
+
+        .main-content {
+            margin: 1rem;
+            display: grid;
+            place-items: center;
+        }
+
+        .tool-container {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            padding: 1rem;
+            width: 100%;
+            max-width: 100%;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease, background-color 0.3s ease;
+        }
+
+        .tool-container.active {
+            display: block;
+            opacity: 1;
+        }
+
+        .section-title {
+            font-size: clamp(1.25rem, 5vw, 1.8rem);
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: var(--primary);
+            position: relative;
+        }
+
+        .section-title::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 40px;
+            height: 3px;
+            background: var(--primary);
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text);
+            font-size: 0.95rem;
+            display: block;
+            transition: color 0.3s ease;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.95rem;
+            background: #f9fafb;
+            transition: all 0.3s ease;
+            -webkit-appearance: none;
+            touch-action: manipulation;
+            color: var(--text);
+        }
+
+        input:focus, textarea:focus, select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(0, 168, 168, 0.2);
+            outline: none;
+            background: var(--card-bg);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            touch-action: manipulation;
+        }
+
+        button:hover:not(:disabled) {
+            background: var(--secondary);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 168, 168, 0.3);
+        }
+
+        button:disabled {
+            background: #a0aec0;
+            cursor: not-allowed;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin: 1rem 0;
+        }
+
+        .output-box {
+            margin: 1rem 0;
+            padding: 1rem;
+            background: #f9fafb;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            min-height: 100px;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        .trial-notice {
+            text-align: center;
+            color: var(--primary);
+            font-weight: 600;
+            background: rgba(0, 168, 168, 0.1);
+            padding: 0.5rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-size: 0.85rem;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .spinner {
+            width: 24px;
+            height: 24px;
+            margin: 0.75rem auto;
+            border: 3px solid rgba(0, 168, 168, 0.1);
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: none;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .footer {
+            padding: 1rem;
+            font-size: 0.8rem;
+            text-align: center;
+            background: var(--card-bg);
+            border-top: 1px solid var(--border);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        .footer a {
+            color: var(--primary);
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        .status {
+            margin: 0.5rem 0;
+            padding: 0.5rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            text-align: center;
+            display: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .status.error {
+            display: block;
+            background-color: rgba(229, 62, 62, 0.1);
+            color: var(--error);
+            border: 1px solid rgba(229, 62, 62, 0.2);
+        }
+
+        .status.success {
+            display: block;
+            background-color: rgba(56, 161, 105, 0.1);
+            color: var(--success);
+            border: 1px solid rgba(56, 161, 105, 0.2);
+        }
+
+        .profile-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        body.dark-mode {
+            --background: #1a202c;
+            --card-bg: #2d3748;
+            --text: #e2e8f0;
+            --text-light: #a0aec0;
+            --border: #4a5568;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        body.dark-mode input,
+        body.dark-mode textarea,
+        body.dark-mode select,
+        body.dark-mode .output-box {
+            background-color: #1a202c;
+            color: #e2e8f0;
+        }
+
+        @media (min-width: 768px) {
+            .navbar {
+                padding: 1rem 2rem;
+                grid-template-columns: auto 1fr auto;
+            }
+
+            .hamburger {
+                display: none;
+            }
+
+            .nav-links {
+                display: flex;
+                position: static;
+                flex-direction: row;
+                width: auto;
+                padding: 0;
+                transform: none;
+                box-shadow: none;
+                gap: 1.5rem;
+            }
+
+            .nav-links a, .nav-links button {
+                width: auto;
+            }
+
+            .main-content {
+                margin: 2rem auto;
+                max-width: 1200px;
+                padding: 0 2rem;
+            }
+
+            .tool-container {
+                padding: 2rem;
+                max-width: 800px;
+            }
+
+            .input-group {
+                display: grid;
+                grid-template-columns: 1fr auto;
+                gap: 1rem;
+            }
+
+            button {
+                width: auto;
+            }
+
+            .output-box {
+                min-height: 150px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .navbar {
+                padding: 0.75rem;
+            }
+
+            .tool-container {
+                padding: 0.75rem;
+            }
+
+            .section-title {
+                margin-bottom: 0.75rem;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                transition: none !important;
+                animation: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">Saransh AI</div>
+        <div></div>
+        <button class="hamburger"><i class="fas fa-bars"></i></button>
+        <div class="nav-links">
+            <a href="#" data-section="pdfSummarizerSection" class="active-link">PDF Summarizer</a>
+            <a href="#" data-section="textAnalyzerSection">Text Analyzer</a>
+            <a href="#" data-section="urlExtractorSection">URL Extractor</a>
+            <a href="#" data-section="keywordExtractorSection">Keyword Extractor</a>
+            <a href="#" data-section="sentimentAnalyzerSection">Sentiment Analyzer</a>
+            <a href="#" data-section="profileSection" id="profileLink"><i class="fas fa-user"></i> Profile</a>
+            <button id="darkModeToggle"><i class="fas fa-moon"></i> Dark Mode</button>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <section id="pdfSummarizerSection" class="tool-container active">
+            <h2 class="section-title">PDF Summarizer</h2>
+            <div class="trial-notice" id="trialMessage">Try our tools free once!</div>
+            <div class="form-group">
+                <label for="pdfUpload">Upload PDF</label>
+                <input type="file" id="pdfUpload" accept=".pdf">
+            </div>
+            <button id="summarizePdfBtn">Summarize</button>
+            <div id="pdfStatus" class="status"></div>
+            <div id="pdfSummary" class="output-box"></div>
+            <div id="pdfSpinner" class="spinner"></div>
+        </section>
+
+        <section id="textAnalyzerSection" class="tool-container">
+            <h2 class="section-title">Text Analyzer</h2>
+            <div class="form-group">
+                <label for="textInput">Text to Analyze</label>
+                <textarea id="textInput" placeholder="Enter text to analyze"></textarea>
+            </div>
+            <button id="analyzeTextBtn">Analyze</button>
+            <div id="textStatus" class="status"></div>
+            <div id="textAnalysis" class="output-box"></div>
+            <div id="textSpinner" class="spinner"></div>
+        </section>
+
+        <section id="urlExtractorSection" class="tool-container">
+            <h2 class="section-title">URL Extractor</h2>
+            <div class="input-group">
+                <input type="text" id="urlInput" placeholder="Enter URL to extract content">
+                <button id="extractUrlBtn">Extract</button>
+            </div>
+            <div id="urlStatus" class="status"></div>
+            <div id="urlContent" class="output-box"></div>
+            <div id="urlSpinner" class="spinner"></div>
+        </section>
+
+        <section id="keywordExtractorSection" class="tool-container">
+            <h2 class="section-title">Keyword Extractor</h2>
+            <div class="form-group">
+                <label for="keywordInput">Text for Keywords</label>
+                <textarea id="keywordInput" placeholder="Enter text to extract keywords"></textarea>
+            </div>
+            <button id="extractKeywordsBtn">Extract Keywords</button>
+            <div id="keywordStatus" class="status"></div>
+            <div id="keywordOutput" class="output-box"></div>
+            <div id="keywordSpinner" class="spinner"></div>
+        </section>
+
+        <section id="sentimentAnalyzerSection" class="tool-container">
+            <h2 class="section-title">Sentiment Analyzer</h2>
+            <div class="form-group">
+                <label for="sentimentInput">Text for Sentiment</label>
+                <textarea id="sentimentInput" placeholder="Enter text to analyze sentiment"></textarea>
+            </div>
+            <button id="analyzeSentimentBtn">Analyze Sentiment</button>
+            <div id="sentimentStatus" class="status"></div>
+            <div id="sentimentOutput" class="output-box"></div>
+            <div id="sentimentSpinner" class="spinner"></div>
+        </section>
+
+        <section id="registerForm" class="tool-container">
+            <h2 class="section-title">Create Account</h2>
+            <div class="form-group">
+                <label for="registerUsername">Username</label>
+                <input type="text" id="registerUsername" placeholder="Min 3 characters" required>
+            </div>
+            <div class="form-group">
+                <label for="registerEmail">Email</label>
+                <input type="email" id="registerEmail" placeholder="Enter your email" required>
+            </div>
+            <div class="form-group">
+                <label for="registerPassword">Password</label>
+                <input type="password" id="registerPassword" placeholder="Min 5 characters" required>
+            </div>
+            <button id="registerBtn">Sign Up</button>
+            <div id="registerStatus" class="status"></div>
+            <p class="status">Already have an account? <a href="#" id="showLogin">Login</a></p>
+        </section>
+
+        <section id="loginForm" class="tool-container">
+            <h2 class="section-title">Sign In</h2>
+            <div class="form-group">
+                <label for="loginIdentifier">Username or Email</label>
+                <input type="text" id="loginIdentifier" placeholder="Enter username or email" required>
+            </div>
+            <div class="form-group">
+                <label for="loginPassword">Password</label>
+                <input type="password" id="loginPassword" placeholder="Enter your password" required>
+            </div>
+            <button id="loginBtn">Login</button>
+            <div id="loginStatus" class="status"></div>
+            <p class="status">New user? <a href="#" id="showRegister">Register</a></p>
+        </section>
+
+        <section id="profileSection" class="tool-container">
+            <h2 class="section-title">Profile</h2>
+            <div class="profile-info">
+                <div class="avatar" id="userAvatar"></div>
+                <div>
+                    <h3 id="usernameDisplay"></h3>
+                    <p class="status">Member since: <span id="joinDate"></span></p>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="summaryLength">Summary Length Preference</label>
+                <select id="summaryLength">
+                    <option value="100">Short (100 words)</option>
+                    <option value="150" selected>Medium (150 words)</option>
+                    <option value="200">Long (200 words)</option>
+                </select>
+            </div>
+            <button id="savePreferences">Save Preferences</button>
+            <button id="logoutBtn" style="margin-top: 1rem;">Sign Out</button>
+            <div id="profileStatus" class="status"></div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <p>© 2025 Saransh AI. All rights reserved.</p>
+        <p>
+            <a href="#" data-section="pdfSummarizerSection">PDF Summarizer</a> |
+            <a href="#" data-section="textAnalyzerSection">Text Analyzer</a> |
+            <a href="#" data-section="urlExtractorSection">URL Extractor</a> |
+            <a href="#" data-section="keywordExtractorSection">Keyword Extractor</a> |
+            <a href="#" data-section="sentimentAnalyzerSection">Sentiment Analyzer</a>
+        </p>
+    </footer>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            let state = {
+                isLoggedIn: localStorage.getItem('isLoggedIn') === 'true',
+                hasUsedTrial: localStorage.getItem('hasUsedTrial') === 'true',
+                username: localStorage.getItem('username') || '',
+                joinDate: localStorage.getItem('joinDate') || new Date().toLocaleDateString(),
+                preferences: localStorage.getItem('preferences') || '150',
+                activeSection: 'pdfSummarizerSection',
+                isLoginPending: false,
+                darkMode: localStorage.getItem('darkMode') === 'true'
+            };
+            let isLoggingOut = false;
+
+            function initUI() {
+                if (state.darkMode) {
+                    $('body').addClass('dark-mode');
+                    $('#darkModeToggle').html('<i class="fas fa-sun"></i> Light Mode');
+                }
+                updateTrialUI();
+                updateNavForLogin();
+                updateActiveNavLink();
+                if (state.isLoggedIn) {
+                    updateProfileUI();
+                }
+            }
+
+            initUI();
+
+            $('.hamburger').click(function() {
+                $('.nav-links').toggleClass('active');
+                $(this).html($('.nav-links').hasClass('active') ? '<i class="fas fa-times"></i>' : '<i class="fas fa-bars"></i>');
+            });
+
+            $('#darkModeToggle').click(() => {
+                $('body').toggleClass('dark-mode');
+                state.darkMode = $('body').hasClass('dark-mode');
+                localStorage.setItem('darkMode', state.darkMode);
+                $('#darkModeToggle').html(state.darkMode ? '<i class="fas fa-sun"></i> Light Mode' : '<i class="fas fa-moon"></i> Dark Mode');
+            });
+
+            $('.nav-links a').click(function(e) {
+                e.preventDefault();
+                const sectionId = $(this).data('section');
+                showSection(sectionId);
+                $('.nav-links').removeClass('active');
+                $('.hamburger').html('<i class="fas fa-bars"></i>');
+            });
+
+            $('#showLogin').click((e) => { e.preventDefault(); showSection('loginForm'); });
+            $('#showRegister').click((e) => { e.preventDefault(); showSection('registerForm'); });
+
+            $('#registerBtn').click(() => {
+                const data = {
+                    username: $('#registerUsername').val().trim(),
+                    email: $('#registerEmail').val().trim(),
+                    password: $('#registerPassword').val()
+                };
+                if (!validateForm(data, ['username', 'email', 'password'])) return;
+
+                showLoading('register');
+                $.ajax({
+                    url: '/register',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(data),
+                    success: (response) => {
+                        if (response.error) {
+                            showStatus('register', response.error, true);
+                            return;
+                        }
+                        state.isLoggedIn = true;
+                        state.username = response.username;
+                        state.joinDate = new Date().toLocaleDateString();
+                        state.preferences = response.preferences || '150';
+                        state.hasUsedTrial = false;
+
+                        localStorage.setItem('isLoggedIn', 'true');
+                        localStorage.setItem('username', state.username);
+                        localStorage.setItem('joinDate', state.joinDate);
+                        localStorage.setItem('preferences', state.preferences);
+                        localStorage.setItem('hasUsedTrial', 'false');
+
+                        updateProfileUI();
+                        updateNavForLogin();
+                        updateTrialUI();
+                        showSection('profileSection');
+                        showStatus('profile', `Welcome, ${state.username}! Registration successful.`, false);
+                    },
+                    error: (xhr) => {
+                        showStatus('register', xhr.responseJSON?.error || 'Registration failed.', true);
+                    },
+                    complete: () => hideLoading('register')
+                });
+            });
+
+            $('#loginBtn').click(() => {
+                if (state.isLoginPending) return;
+
+                const data = {
+                    identifier: $('#loginIdentifier').val().trim(),
+                    password: $('#loginPassword').val()
+                };
+                if (!validateForm(data, ['identifier', 'password'])) return;
+
+                state.isLoginPending = true;
+                showLoading('login');
+                $.ajax({
+                    url: '/login',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(data),
+                    success: (response) => {
+                        if (response.error) {
+                            showStatus('login', response.error, true);
+                            return;
+                        }
+                        state.isLoggedIn = true;
+                        state.username = response.username;
+                        state.joinDate = new Date().toLocaleDateString();
+                        state.preferences = response.preferences || '150';
+                        state.hasUsedTrial = false;
+
+                        localStorage.setItem('isLoggedIn', 'true');
+                        localStorage.setItem('username', state.username);
+                        localStorage.setItem('joinDate', state.joinDate);
+                        localStorage.setItem('preferences', state.preferences);
+                        localStorage.setItem('hasUsedTrial', 'false');
+
+                        updateProfileUI();
+                        updateNavForLogin();
+                        updateTrialUI();
+                        showSection('profileSection');
+                        showStatus('profile', `Welcome back, ${state.username}!`, false);
+                    },
+                    error: (xhr) => {
+                        showStatus('login', xhr.responseJSON?.error || 'Login failed.', true);
+                    },
+                    complete: () => {
+                        state.isLoginPending = false;
+                        hideLoading('login');
+                    }
+                });
+            });
+
+            $('#savePreferences').click(() => {
+                const summaryLength = $('#summaryLength').val();
+                showLoading('profile');
+                $.ajax({
+                    url: '/preferences',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ summary_length: summaryLength }),
+                    success: (response) => {
+                        if (response.error) {
+                            showStatus('profile', response.error, true);
+                            return;
+                        }
+                        state.preferences = summaryLength;
+                        localStorage.setItem('preferences', summaryLength);
+                        updateProfileUI();
+                        showStatus('profile', 'Preferences saved successfully!', false);
+                    },
+                    error: (xhr) => {
+                        showStatus('profile', xhr.responseJSON?.error || 'Failed to save preferences.', true);
+                    },
+                    complete: () => hideLoading('profile')
+                });
+            });
+
+            $('#logoutBtn').click(function(e) {
+                if (!confirm('Are you sure you want to log out?')) {
+                    e.preventDefault();
+                    return;
+                }
+                if (isLoggingOut) return;
+                isLoggingOut = true;
+
+                showLoading('profile');
+                $.ajax({
+                    url: '/logout',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({}),
+                    timeout: 5000,
+                    success: (response) => {
+                        if (response.success !== undefined && !response.success) {
+                            showStatus('profile', response.error || 'Logout failed.', true);
+                            return;
+                        }
+                        // Reset state and local storage
+                        resetState();
+                        // Update UI and show success message
+                        updateUIAfterLogout();
+                    },
+                    error: (xhr) => {
+                        let errorMsg = 'Logout failed. Please try again.';
+                        if (xhr.status === 0) {
+                            errorMsg = 'Network error. Please check your connection.';
+                        } else if (xhr.responseJSON?.error) {
+                            errorMsg = xhr.responseJSON.error;
+                        }
+                        showStatus('profile', errorMsg, true);
+                    },
+                    complete: () => {
+                        hideLoading('profile');
+                        isLoggingOut = false;
+                    }
+                });
+            });
+
+            $('#summarizePdfBtn').click(() => processToolRequest('/summarize', 'pdf', getPdfData));
+            $('#analyzeTextBtn').click(() => processToolRequest('/analyze', 'text', getTextData));
+            $('#extractUrlBtn').click(() => processToolRequest('/extract', 'url', getUrlData));
+            $('#extractKeywordsBtn').click(() => processToolRequest('/keywords', 'keyword', getKeywordData));
+            $('#analyzeSentimentBtn').click(() => processToolRequest('/sentiment', 'sentiment', getSentimentData));
+
+            function showSection(sectionId) {
+                state.activeSection = sectionId;
+                $('.tool-container').removeClass('active').css('opacity', 0);
+                $(`#${sectionId}`).addClass('active').css('opacity', 1);
+                updateActiveNavLink();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+
+            function updateActiveNavLink() {
+                $('.nav-links a').removeClass('active-link');
+                $(`.nav-links a[data-section="${state.activeSection}"]`).addClass('active-link');
+            }
+
+            function updateTrialUI() {
+                $('#trialMessage').toggle(!state.isLoggedIn)
+                    .text(state.hasUsedTrial ? 'Trial used! Please login or register.' : 'Try our tools free once!');
+            }
+
+            function updateNavForLogin() {
+                $('#profileLink').html(state.isLoggedIn ? `<i class="fas fa-user"></i> ${state.username}` : '<i class="fas fa-user"></i> Profile');
+            }
+
+            function updateProfileUI() {
+                if (!state.isLoggedIn) return;
+                $('#userAvatar').text(state.username.charAt(0).toUpperCase());
+                $('#usernameDisplay').text(state.username);
+                $('#joinDate').text(state.joinDate);
+                $('#summaryLength').val(state.preferences);
+            }
+
+            function resetState() {
+                state.isLoggedIn = false;
+                state.hasUsedTrial = false;
+                state.username = '';
+                state.joinDate = '';
+                state.preferences = '150';
+                state.activeSection = 'pdfSummarizerSection';
+                state.isLoginPending = false;
+                // Preserve dark mode setting
+                const darkMode = state.darkMode;
+                localStorage.clear();
+                if (darkMode) {
+                    localStorage.setItem('darkMode', 'true');
+                }
+                state.darkMode = darkMode;
+            }
+
+            function updateUIAfterLogout() {
+                updateTrialUI();
+                updateNavForLogin();
+                // Clear profile section
+                $('#userAvatar').text('');
+                $('#usernameDisplay').text('');
+                $('#joinDate').text('');
+                $('#summaryLength').val('150');
+                // Show the PDF Summarizer section
+                showSection('pdfSummarizerSection');
+                // Show success message in the PDF Summarizer section
+                showStatus('pdf', 'Logged out successfully!', false);
+                // Clear all inputs and outputs
+                $('input, textarea').val('');
+                $('.output-box').text('');
             }
 
             function showLoading(type) {
