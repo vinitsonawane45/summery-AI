@@ -833,8 +833,7 @@
 </body>
 </html> 
  -->
-
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -854,6 +853,7 @@
             --shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
             --accent: #f6e05e;
             --error: #e53e3e;
+            --success: #38a169;
         }
 
         * {
@@ -871,6 +871,7 @@
             min-height: 100vh;
             overflow-x: hidden;
             -webkit-font-smoothing: antialiased;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
         .navbar {
@@ -884,6 +885,7 @@
             grid-template-columns: auto 1fr auto;
             align-items: center;
             gap: 1rem;
+            transition: background-color 0.3s ease;
         }
 
         .navbar .logo {
@@ -901,6 +903,7 @@
             color: var(--text);
             cursor: pointer;
             padding: 0.5rem;
+            transition: color 0.3s ease;
         }
 
         .nav-links {
@@ -914,7 +917,7 @@
             padding: 1rem;
             box-shadow: var(--shadow);
             transform: translateY(-100%);
-            transition: transform 0.3s ease;
+            transition: transform 0.3s ease, background-color 0.3s ease;
             z-index: 999;
         }
 
@@ -962,7 +965,8 @@
             width: 100%;
             max-width: 100%;
             display: none;
-            transition: opacity 0.3s ease;
+            opacity: 0;
+            transition: opacity 0.3s ease, background-color 0.3s ease;
         }
 
         .tool-container.active {
@@ -998,6 +1002,7 @@
             color: var(--text);
             font-size: 0.95rem;
             display: block;
+            transition: color 0.3s ease;
         }
 
         input, textarea, select {
@@ -1010,13 +1015,14 @@
             transition: all 0.3s ease;
             -webkit-appearance: none;
             touch-action: manipulation;
+            color: var(--text);
         }
 
         input:focus, textarea:focus, select:focus {
             border-color: var(--primary);
             box-shadow: 0 0 0 3px rgba(0, 168, 168, 0.2);
             outline: none;
-            background: #fff;
+            background: var(--card-bg);
         }
 
         textarea {
@@ -1038,10 +1044,15 @@
             touch-action: manipulation;
         }
 
-        button:hover {
+        button:hover:not(:disabled) {
             background: var(--secondary);
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0, 168, 168, 0.3);
+        }
+
+        button:disabled {
+            background: #a0aec0;
+            cursor: not-allowed;
         }
 
         .input-group {
@@ -1061,6 +1072,7 @@
             font-size: 0.9rem;
             white-space: pre-wrap;
             overflow-x: auto;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
         }
 
         .trial-notice {
@@ -1072,6 +1084,7 @@
             border-radius: 8px;
             margin-bottom: 1rem;
             font-size: 0.85rem;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
         .spinner {
@@ -1082,6 +1095,7 @@
             border-top: 3px solid var(--primary);
             border-radius: 50%;
             animation: spin 1s linear infinite;
+            display: none;
         }
 
         @keyframes spin {
@@ -1094,6 +1108,61 @@
             text-align: center;
             background: var(--card-bg);
             border-top: 1px solid var(--border);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        .footer a {
+            color: var(--primary);
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        .status {
+            margin: 0.5rem 0;
+            padding: 0.5rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            text-align: center;
+            display: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .status.error {
+            display: block;
+            background-color: rgba(229, 62, 62, 0.1);
+            color: var(--error);
+            border: 1px solid rgba(229, 62, 62, 0.2);
+        }
+
+        .status.success {
+            display: block;
+            background-color: rgba(56, 161, 105, 0.1);
+            color: var(--success);
+            border: 1px solid rgba(56, 161, 105, 0.2);
+        }
+
+        .profile-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: bold;
         }
 
         body.dark-mode {
@@ -1103,6 +1172,14 @@
             --text-light: #a0aec0;
             --border: #4a5568;
             --shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        body.dark-mode input,
+        body.dark-mode textarea,
+        body.dark-mode select,
+        body.dark-mode .output-box {
+            background-color: #1a202c;
+            color: #e2e8f0;
         }
 
         @media (min-width: 768px) {
@@ -1189,7 +1266,7 @@
             <a href="#" data-section="urlExtractorSection">URL Extractor</a>
             <a href="#" data-section="keywordExtractorSection">Keyword Extractor</a>
             <a href="#" data-section="sentimentAnalyzerSection">Sentiment Analyzer</a>
-            <button id="profileLink"><i class="fas fa-user"></i> Profile</button>
+            <a href="#" data-section="profileSection" id="profileLink"><i class="fas fa-user"></i> Profile</a>
             <button id="darkModeToggle"><i class="fas fa-moon"></i> Dark Mode</button>
         </div>
     </nav>
@@ -1203,9 +1280,9 @@
                 <input type="file" id="pdfUpload" accept=".pdf">
             </div>
             <button id="summarizePdfBtn">Summarize</button>
-            <div id="pdfStatus" class="status hidden"></div>
+            <div id="pdfStatus" class="status"></div>
             <div id="pdfSummary" class="output-box"></div>
-            <div id="pdfSpinner" class="spinner hidden"></div>
+            <div id="pdfSpinner" class="spinner"></div>
         </section>
 
         <section id="textAnalyzerSection" class="tool-container">
@@ -1215,9 +1292,9 @@
                 <textarea id="textInput" placeholder="Enter text to analyze"></textarea>
             </div>
             <button id="analyzeTextBtn">Analyze</button>
-            <div id="textStatus" class="status hidden"></div>
+            <div id="textStatus" class="status"></div>
             <div id="textAnalysis" class="output-box"></div>
-            <div id="textSpinner" class="spinner hidden"></div>
+            <div id="textSpinner" class="spinner"></div>
         </section>
 
         <section id="urlExtractorSection" class="tool-container">
@@ -1226,9 +1303,9 @@
                 <input type="text" id="urlInput" placeholder="Enter URL to extract content">
                 <button id="extractUrlBtn">Extract</button>
             </div>
-            <div id="urlStatus" class="status hidden"></div>
+            <div id="urlStatus" class="status"></div>
             <div id="urlContent" class="output-box"></div>
-            <div id="urlSpinner" class="spinner hidden"></div>
+            <div id="urlSpinner" class="spinner"></div>
         </section>
 
         <section id="keywordExtractorSection" class="tool-container">
@@ -1238,9 +1315,9 @@
                 <textarea id="keywordInput" placeholder="Enter text to extract keywords"></textarea>
             </div>
             <button id="extractKeywordsBtn">Extract Keywords</button>
-            <div id="keywordStatus" class="status hidden"></div>
+            <div id="keywordStatus" class="status"></div>
             <div id="keywordOutput" class="output-box"></div>
-            <div id="keywordSpinner" class="spinner hidden"></div>
+            <div id="keywordSpinner" class="spinner"></div>
         </section>
 
         <section id="sentimentAnalyzerSection" class="tool-container">
@@ -1250,9 +1327,9 @@
                 <textarea id="sentimentInput" placeholder="Enter text to analyze sentiment"></textarea>
             </div>
             <button id="analyzeSentimentBtn">Analyze Sentiment</button>
-            <div id="sentimentStatus" class="status hidden"></div>
+            <div id="sentimentStatus" class="status"></div>
             <div id="sentimentOutput" class="output-box"></div>
-            <div id="sentimentSpinner" class="spinner hidden"></div>
+            <div id="sentimentSpinner" class="spinner"></div>
         </section>
 
         <section id="registerForm" class="tool-container">
@@ -1267,9 +1344,10 @@
             </div>
             <div class="form-group">
                 <label for="registerPassword">Password</label>
-                <input type="password" id="registerPassword" placeholder="Min 8 characters" required>
+                <input type="password" id="registerPassword" placeholder="Min 5 characters" required>
             </div>
             <button id="registerBtn">Sign Up</button>
+            <div id="registerStatus" class="status"></div>
             <p class="status">Already have an account? <a href="#" id="showLogin">Login</a></p>
         </section>
 
@@ -1284,7 +1362,7 @@
                 <input type="password" id="loginPassword" placeholder="Enter your password" required>
             </div>
             <button id="loginBtn">Login</button>
-            <div id="loginStatus" class="status hidden"></div>
+            <div id="loginStatus" class="status"></div>
             <p class="status">New user? <a href="#" id="showRegister">Register</a></p>
         </section>
 
@@ -1301,13 +1379,13 @@
                 <label for="summaryLength">Summary Length Preference</label>
                 <select id="summaryLength">
                     <option value="100">Short (100 words)</option>
-                    <option value="150">Medium (150 words)</option>
+                    <option value="150" selected>Medium (150 words)</option>
                     <option value="200">Long (200 words)</option>
                 </select>
             </div>
             <button id="savePreferences">Save Preferences</button>
             <button id="logoutBtn" style="margin-top: 1rem;">Sign Out</button>
-            <div id="profileStatus" class="status hidden"></div>
+            <div id="profileStatus" class="status"></div>
         </section>
     </main>
 
@@ -1332,12 +1410,15 @@
                 joinDate: localStorage.getItem('joinDate') || new Date().toLocaleDateString(),
                 preferences: localStorage.getItem('preferences') || '150',
                 activeSection: 'pdfSummarizerSection',
-                isLoginPending: false
+                isLoginPending: false,
+                darkMode: localStorage.getItem('darkMode') === 'true'
             };
 
-            initUI();
-
             function initUI() {
+                if (state.darkMode) {
+                    $('body').addClass('dark-mode');
+                    $('#darkModeToggle').html('<i class="fas fa-sun"></i> Light Mode');
+                }
                 updateTrialUI();
                 updateNavForLogin();
                 updateActiveNavLink();
@@ -1346,22 +1427,18 @@
                 }
             }
 
+            initUI();
+
             $('.hamburger').click(function() {
                 $('.nav-links').toggleClass('active');
                 $(this).html($('.nav-links').hasClass('active') ? '<i class="fas fa-times"></i>' : '<i class="fas fa-bars"></i>');
             });
 
-            $('#darkModeToggle').click(() => $('body').toggleClass('dark-mode'));
-
-            $('#profileLink').click(() => {
-                if (state.isLoggedIn) {
-                    showSection('profileSection');
-                    loadProfile();
-                } else {
-                    showAuthPrompt();
-                }
-                $('.nav-links').removeClass('active');
-                $('.hamburger').html('<i class="fas fa-bars"></i>');
+            $('#darkModeToggle').click(() => {
+                $('body').toggleClass('dark-mode');
+                state.darkMode = $('body').hasClass('dark-mode');
+                localStorage.setItem('darkMode', state.darkMode);
+                $('#darkModeToggle').html(state.darkMode ? '<i class="fas fa-sun"></i> Light Mode' : '<i class="fas fa-moon"></i> Dark Mode');
             });
 
             $('.nav-links a').click(function(e) {
@@ -1382,10 +1459,8 @@
                     password: $('#registerPassword').val()
                 };
                 if (!validateForm(data, ['username', 'email', 'password'])) return;
-                
-                // Show loading state
-                $('#registerBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Registering...');
-                
+
+                showLoading('register');
                 $.ajax({
                     url: '/register',
                     method: 'POST',
@@ -1396,57 +1471,28 @@
                             showStatus('register', response.error, true);
                             return;
                         }
-                        
-                        // Automatically log in after registration
-                        const loginData = {
-                            identifier: data.username,
-                            password: data.password
-                        };
-                        
-                        $.ajax({
-                            url: '/login',
-                            method: 'POST',
-                            contentType: 'application/json',
-                            data: JSON.stringify(loginData),
-                            success: (loginResponse) => {
-                                if (loginResponse.error) {
-                                    showStatus('login', loginResponse.error, true);
-                                    return;
-                                }
-                                
-                                state.isLoggedIn = true;
-                                state.username = loginResponse.username;
-                                state.joinDate = new Date().toLocaleDateString();
-                                state.hasUsedTrial = false;
-                                state.preferences = loginResponse.preferences || '150';
-                                
-                                localStorage.setItem('isLoggedIn', 'true');
-                                localStorage.setItem('username', state.username);
-                                localStorage.setItem('joinDate', state.joinDate);
-                                localStorage.setItem('hasUsedTrial', 'false');
-                                localStorage.setItem('preferences', state.preferences);
-                                
-                                updateProfileUI();
-                                updateNavForLogin();
-                                updateTrialUI();
-                                showSection('profileSection');
-                                showStatus('profile', `Welcome, ${state.username}! Registration and login successful.`, false);
-                            },
-                            error: (xhr) => {
-                                showStatus('login', xhr.responseJSON?.error || 'Registration successful but auto-login failed. Please login manually.', true);
-                                showSection('loginForm');
-                            },
-                            complete: () => {
-                                $('#registerBtn').prop('disabled', false).text('Sign Up');
-                            }
-                        });
+                        state.isLoggedIn = true;
+                        state.username = response.username;
+                        state.joinDate = new Date().toLocaleDateString();
+                        state.preferences = response.preferences || '150';
+                        state.hasUsedTrial = false;
+
+                        localStorage.setItem('isLoggedIn', 'true');
+                        localStorage.setItem('username', state.username);
+                        localStorage.setItem('joinDate', state.joinDate);
+                        localStorage.setItem('preferences', state.preferences);
+                        localStorage.setItem('hasUsedTrial', 'false');
+
+                        updateProfileUI();
+                        updateNavForLogin();
+                        updateTrialUI();
+                        showSection('profileSection');
+                        showStatus('profile', `Welcome, ${state.username}! Registration successful.`, false);
                     },
                     error: (xhr) => {
-                        showStatus('register', xhr.responseJSON?.error || 'Registration failed. Please try again.', true);
+                        showStatus('register', xhr.responseJSON?.error || 'Registration failed.', true);
                     },
-                    complete: () => {
-                        $('#registerBtn').prop('disabled', false).text('Sign Up');
-                    }
+                    complete: () => hideLoading('register')
                 });
             });
 
@@ -1460,8 +1506,7 @@
                 if (!validateForm(data, ['identifier', 'password'])) return;
 
                 state.isLoginPending = true;
-                $('#loginBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Logging in...');
-                
+                showLoading('login');
                 $.ajax({
                     url: '/login',
                     method: 'POST',
@@ -1472,39 +1517,37 @@
                             showStatus('login', response.error, true);
                             return;
                         }
-                        
                         state.isLoggedIn = true;
                         state.username = response.username;
-                        state.joinDate = response.joinDate || new Date().toLocaleDateString();
-                        state.hasUsedTrial = false;
+                        state.joinDate = new Date().toLocaleDateString();
                         state.preferences = response.preferences || '150';
-                        
+                        state.hasUsedTrial = false;
+
                         localStorage.setItem('isLoggedIn', 'true');
                         localStorage.setItem('username', state.username);
                         localStorage.setItem('joinDate', state.joinDate);
-                        localStorage.setItem('hasUsedTrial', 'false');
                         localStorage.setItem('preferences', state.preferences);
+                        localStorage.setItem('hasUsedTrial', 'false');
 
                         updateProfileUI();
                         updateNavForLogin();
                         updateTrialUI();
                         showSection('profileSection');
-                        showStatus('profile', `Welcome back, ${state.username}! Login successful.`, false);
+                        showStatus('profile', `Welcome back, ${state.username}!`, false);
                     },
                     error: (xhr) => {
-                        showStatus('login', xhr.responseJSON?.error || 'Login failed. Please try again.', true);
+                        showStatus('login', xhr.responseJSON?.error || 'Login failed.', true);
                     },
                     complete: () => {
                         state.isLoginPending = false;
-                        $('#loginBtn').prop('disabled', false).text('Login');
+                        hideLoading('login');
                     }
                 });
             });
 
             $('#savePreferences').click(() => {
                 const summaryLength = $('#summaryLength').val();
-                $('#savePreferences').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Saving...');
-                
+                showLoading('profile');
                 $.ajax({
                     url: '/preferences',
                     method: 'POST',
@@ -1515,30 +1558,20 @@
                             showStatus('profile', response.error, true);
                             return;
                         }
-                        
                         state.preferences = summaryLength;
                         localStorage.setItem('preferences', summaryLength);
                         updateProfileUI();
                         showStatus('profile', 'Preferences saved successfully!', false);
                     },
                     error: (xhr) => {
-                        showStatus('profile', xhr.responseJSON?.error || 'Failed to save preferences. Please try again.', true);
+                        showStatus('profile', xhr.responseJSON?.error || 'Failed to save preferences.', true);
                     },
-                    complete: () => {
-                        $('#savePreferences').prop('disabled', false).text('Save Preferences');
-                    }
+                    complete: () => hideLoading('profile')
                 });
             });
 
-            $('#summarizePdfBtn').click(() => processToolRequest('/summarize', 'pdf', getPdfData));
-            $('#analyzeTextBtn').click(() => processToolRequest('/analyze', 'text', getTextData));
-            $('#extractUrlBtn').click(() => processToolRequest('/extract', 'url', getUrlData));
-            $('#extractKeywordsBtn').click(() => processToolRequest('/keywords', 'keyword', getKeywordData));
-            $('#analyzeSentimentBtn').click(() => processToolRequest('/sentiment', 'sentiment', getSentimentData));
-
             $('#logoutBtn').click(() => {
-                $('#logoutBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Logging out...');
-                
+                showLoading('profile');
                 $.ajax({
                     url: '/logout',
                     method: 'POST',
@@ -1549,22 +1582,25 @@
                         state.hasUsedTrial = false;
                         state.preferences = '150';
                         state.joinDate = '';
-                        
                         localStorage.clear();
-                        
+
                         updateTrialUI();
                         updateNavForLogin();
                         showSection('pdfSummarizerSection');
                         showStatus('pdf', 'Logged out successfully!', false);
                     },
                     error: (xhr) => {
-                        showStatus('profile', xhr.responseJSON?.error || 'Logout failed. Please try again.', true);
+                        showStatus('profile', xhr.responseJSON?.error || 'Logout failed.', true);
                     },
-                    complete: () => {
-                        $('#logoutBtn').prop('disabled', false).text('Sign Out');
-                    }
+                    complete: () => hideLoading('profile')
                 });
             });
+
+            $('#summarizePdfBtn').click(() => processToolRequest('/summarize', 'pdf', getPdfData));
+            $('#analyzeTextBtn').click(() => processToolRequest('/analyze', 'text', getTextData));
+            $('#extractUrlBtn').click(() => processToolRequest('/extract', 'url', getUrlData));
+            $('#extractKeywordsBtn').click(() => processToolRequest('/keywords', 'keyword', getKeywordData));
+            $('#analyzeSentimentBtn').click(() => processToolRequest('/sentiment', 'sentiment', getSentimentData));
 
             function showSection(sectionId) {
                 state.activeSection = sectionId;
@@ -1579,12 +1615,8 @@
                 $(`.nav-links a[data-section="${state.activeSection}"]`).addClass('active-link');
             }
 
-            function showAuthPrompt() {
-                showSection('loginForm');
-            }
-
             function updateTrialUI() {
-                $('#trialMessage').toggleClass('hidden', state.isLoggedIn)
+                $('#trialMessage').toggle(!state.isLoggedIn)
                     .text(state.hasUsedTrial ? 'Trial used! Please login or register.' : 'Try our tools free once!');
             }
 
@@ -1600,56 +1632,26 @@
                 $('#summaryLength').val(state.preferences);
             }
 
-            function loadProfile() {
-                if (!state.isLoggedIn) return;
-                showLoading('profile');
-                
-                $.ajax({
-                    url: '/profile',
-                    method: 'GET',
-                    success: (response) => {
-                        if (response.error) {
-                            showStatus('profile', response.error, true);
-                            return;
-                        }
-                        
-                        state.username = response.username || state.username;
-                        state.joinDate = response.joinDate || state.joinDate;
-                        state.preferences = response.preferences || state.preferences;
-                        
-                        localStorage.setItem('username', state.username);
-                        localStorage.setItem('joinDate', state.joinDate);
-                        localStorage.setItem('preferences', state.preferences);
-                        
-                        updateProfileUI();
-                        showStatus('profile', 'Profile loaded successfully!', false);
-                    },
-                    error: (xhr) => {
-                        showStatus('profile', xhr.responseJSON?.error || 'Failed to load profile. Please try again.', true);
-                    },
-                    complete: () => {
-                        hideLoading('profile');
-                    }
-                });
-            }
-
             function showLoading(type) {
-                $(`#${type}Spinner`).removeClass('hidden');
-                $(`#${type}Status`).addClass('hidden').removeClass('error success rate-limit');
+                $(`#${type}Btn`).prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Processing...');
+                $(`#${type}Spinner`).show();
+                $(`#${type}Status`).hide().text('').removeClass('error success');
                 $(`#${type}Summary, #${type}Analysis, #${type}Content, #${type}Output`).text('');
             }
 
             function hideLoading(type) {
-                $(`#${type}Spinner`).addClass('hidden');
+                $(`#${type}Btn`).prop('disabled', false).text(type === 'pdf' ? 'Summarize' : type === 'text' ? 'Analyze' : type === 'url' ? 'Extract' : type === 'keyword' ? 'Extract Keywords' : type === 'sentiment' ? 'Analyze Sentiment' : type === 'register' ? 'Sign Up' : type === 'login' ? 'Login' : 'Save Preferences');
+                $(`#${type}Spinner`).hide();
             }
 
-            function showStatus(type, message, isError = false, isRateLimit = false) {
-                const statusElement = $(`#${type}Status`);
-                statusElement
+            function showStatus(type, message, isError = false) {
+                const $status = $(`#${type}Status`);
+                $status
                     .text(message)
-                    .removeClass('hidden error success rate-limit')
-                    .addClass(isError ? 'error' : isRateLimit ? 'rate-limit' : 'success');
-                setTimeout(() => statusElement.addClass('hidden'), 5000);
+                    .removeClass('error success')
+                    .addClass(isError ? 'error' : 'success')
+                    .show();
+                setTimeout(() => $status.fadeOut(), 5000);
             }
 
             function validateForm(data, requiredFields) {
@@ -1670,7 +1672,7 @@
                 }
                 const formData = new FormData();
                 formData.append('pdf_file', pdfFile);
-                return { data: formData, processData: false, contentType: false };
+                return { data: formData, contentType: false, processData: false };
             }
 
             function getTextData() {
@@ -1711,44 +1713,41 @@
 
             function processToolRequest(url, type, getDataFn) {
                 if (!state.isLoggedIn && state.hasUsedTrial) {
-                    showAuthPrompt();
+                    showSection('loginForm');
+                    showStatus('login', 'Please login or register to continue!', true);
                     return;
                 }
+
                 const result = getDataFn();
                 if (!result) return;
-                
-                const { data, processData = true, contentType = 'application/json' } = result;
-                
+
+                const { data, contentType = 'application/json', processData = true } = result;
                 showLoading(type);
-                $(`#${type}Btn`).prop('disabled', true);
-                
+
                 $.ajax({
                     url: url,
                     method: 'POST',
-                    data: processData ? JSON.stringify(data) : data,
                     contentType: contentType,
                     processData: processData,
+                    data: contentType === 'application/json' ? JSON.stringify(data) : data,
                     success: (response) => {
-                        hideLoading(type);
                         if (response.error) {
                             showStatus(type, response.error, true);
                             return;
                         }
-                        
                         if (url === '/summarize') {
-                            $('#pdfSummary').text(response.summary || response.result);
+                            $('#pdfSummary').text(response.summary);
                         } else if (url === '/analyze') {
-                            $('#textAnalysis').text(response.analysis || response.result);
+                            $('#textAnalysis').text(JSON.stringify(response.analysis, null, 2));
                         } else if (url === '/extract') {
-                            $('#urlContent').text(response.content || response.result);
+                            $('#urlContent').text(response.content);
                         } else if (url === '/keywords') {
-                            $('#keywordOutput').text(response.keywords || response.result);
+                            $('#keywordOutput').text(response.keywords.join(', '));
                         } else if (url === '/sentiment') {
-                            $('#sentimentOutput').text(response.sentiment || response.result);
+                            $('#sentimentOutput').text(JSON.stringify(response.sentiment, null, 2));
                         }
-                        
                         showStatus(type, 'Operation completed successfully!', false);
-                        
+
                         if (!state.isLoggedIn) {
                             state.hasUsedTrial = true;
                             localStorage.setItem('hasUsedTrial', 'true');
@@ -1756,13 +1755,9 @@
                         }
                     },
                     error: (xhr) => {
-                        hideLoading(type);
-                        const errorMsg = xhr.responseJSON?.error || 'An error occurred. Please try again.';
-                        showStatus(type, errorMsg, true);
+                        showStatus(type, xhr.responseJSON?.error || 'An error occurred. Please try again.', true);
                     },
-                    complete: () => {
-                        $(`#${type}Btn`).prop('disabled', false);
-                    }
+                    complete: () => hideLoading(type)
                 });
             }
         });
