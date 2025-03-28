@@ -1131,7 +1131,6 @@
 #     serve(app, host='0.0.0.0', port=5000)
 
 
-
 from flask import Flask, request, jsonify, session, render_template
 from flask_sqlalchemy import SQLAlchemy
 from transformers import T5ForConditionalGeneration, T5Tokenizer
@@ -1234,7 +1233,7 @@ def check_rate_limit(key, limit, period):
     now = datetime.now(UTC)
     with db.session.begin():
         rate_limit = db.session.query(RateLimit).filter_by(key=key).first()
-        if not ratelimit:
+        if not rate_limit:
             rate_limit = RateLimit(
                 key=key,
                 expiry=now + timedelta(seconds=period),
@@ -1442,11 +1441,11 @@ def logout():
     try:
         ip_address = get_remote_address()
         if not check_rate_limit(f"logout:{ip_address}", 10, 60):
-            return jsonify({'success': false, 'error': 'Rate limit exceeded: 10 per minute'}), 429
+            return jsonify({'success': False, 'error': 'Rate limit exceeded: 10 per minute'}), 429
 
         # Check if user is logged in
         if 'user_id' not in session:
-            return jsonify({'success': false, 'error': 'Not authenticated'}), 401
+            return jsonify({'success': False, 'error': 'Not authenticated'}), 401
 
         # Log the user ID before logout
         user_id = session.get('user_id')
@@ -1458,13 +1457,13 @@ def logout():
         # Verify session is cleared
         if 'user_id' in session:
             app.logger.error("Session clearing failed: user_id still present after logout")
-            return jsonify({'success': false, 'error': 'Logout failed due to session clearing issue'}), 500
+            return jsonify({'success': False, 'error': 'Logout failed due to session clearing issue'}), 500
 
         app.logger.info(f"User ID {user_id} logged out successfully")
-        return jsonify({'success': true})
+        return jsonify({'success': True})
     except Exception as e:
         app.logger.error(f"Logout error: {str(e)}")
-        return jsonify({'success': false, 'error': 'Logout failed: ' + str(e)}), 500
+        return jsonify({'success': False, 'error': 'Logout failed: ' + str(e)}), 500
 
 @app.route('/profile', methods=['GET'])
 def profile():
