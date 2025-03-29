@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -820,11 +820,10 @@
         });
     </script>
 </body>
-</html>
+</html> -->
 
 
-
-<!-- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -1449,7 +1448,7 @@
             });
 
             $('#savePreferences').click(() => {
-                const data = { summary_length: parseInt($('#summaryLength').val()) };
+                const data = { summary_length: $('#summaryLength').val() };
                 processRequest('/preferences', data, 'profile', () => {
                     state.preferences = data.summary_length;
                     localStorage.setItem('preferences', data.summary_length);
@@ -1637,7 +1636,7 @@
                         } else if (url === '/extract') {
                             $('#urlContent').text(response.content || 'No content extracted.');
                         } else if (url === '/keywords') {
-                            $('#keywordOutput').text(response.keywords.join(', ') || 'No keywords extracted.');
+                            $('#keywordOutput').text(response.keywords ? response.keywords.join(', ') : 'No keywords extracted.');
                         } else if (url === '/sentiment') {
                             $('#sentimentOutput').text(JSON.stringify(response.sentiment, null, 2));
                         }
@@ -1650,7 +1649,18 @@
                     },
                     error: (xhr) => {
                         hideLoading(type);
-                        const errorMsg = xhr.responseJSON?.error || 'An unexpected error occurred. Please try again.';
+                        let errorMsg = 'An unexpected error occurred. Please try again.';
+                        
+                        if (xhr.responseJSON && xhr.responseJSON.error) {
+                            errorMsg = xhr.responseJSON.error;
+                        } else if (xhr.status === 413) {
+                            errorMsg = 'File too large (max 100MB)';
+                        } else if (xhr.status === 429) {
+                            errorMsg = 'Rate limit exceeded. Please try again later.';
+                            showStatus(type, errorMsg, true, true);
+                            return;
+                        }
+                        
                         showStatus(type, errorMsg, true);
                     }
                 });
@@ -1674,7 +1684,16 @@
                     },
                     error: (xhr) => {
                         if (loadingType) hideLoading(loadingType);
-                        const errorMsg = xhr.responseJSON?.error || 'An unexpected error occurred. Please try again.';
+                        let errorMsg = 'An unexpected error occurred. Please try again.';
+                        
+                        if (xhr.responseJSON && xhr.responseJSON.error) {
+                            errorMsg = xhr.responseJSON.error;
+                        } else if (xhr.status === 429) {
+                            errorMsg = 'Rate limit exceeded. Please try again later.';
+                            showStatus(loadingType || 'login', errorMsg, true, true);
+                            return;
+                        }
+                        
                         showStatus(loadingType || 'login', errorMsg, true);
                     },
                     complete: () => {
@@ -1686,4 +1705,3 @@
     </script>
 </body>
 </html>
- -->
