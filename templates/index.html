@@ -2571,7 +2571,11 @@
                     showStatus('text', 'Please enter text to analyze!', true);
                     return null;
                 }
-                return { data: { text: text } };
+                return { 
+                    data: JSON.stringify({ text: text }), 
+                    processData: false, 
+                    contentType: 'application/json' 
+                };
             }
 
             function getUrlData() {
@@ -2580,7 +2584,11 @@
                     showStatus('url', 'Please enter a URL!', true);
                     return null;
                 }
-                return { data: { url: url } };
+                return { 
+                    data: JSON.stringify({ url: url }), 
+                    processData: false, 
+                    contentType: 'application/json' 
+                };
             }
 
             function getKeywordData() {
@@ -2589,7 +2597,11 @@
                     showStatus('keyword', 'Please enter text for keyword extraction!', true);
                     return null;
                 }
-                return { data: { text: text } };
+                return { 
+                    data: JSON.stringify({ text: text }), 
+                    processData: false, 
+                    contentType: 'application/json' 
+                };
             }
 
             function getSentimentData() {
@@ -2598,7 +2610,11 @@
                     showStatus('sentiment', 'Please enter text for sentiment analysis!', true);
                     return null;
                 }
-                return { data: { text: text } };
+                return { 
+                    data: JSON.stringify({ text: text }), 
+                    processData: false, 
+                    contentType: 'application/json' 
+                };
             }
 
             function processToolRequest(url, type, getDataFn) {
@@ -2616,8 +2632,8 @@
                     url: url,
                     method: 'POST',
                     data: result.data,
-                    contentType: result.contentType || 'application/json',
-                    processData: result.processData !== false,
+                    contentType: result.contentType,
+                    processData: result.processData,
                     success: (response) => {
                         hideLoading(type);
                         
@@ -2725,4 +2741,3 @@
     </script>
 </body>
 </html>
-
