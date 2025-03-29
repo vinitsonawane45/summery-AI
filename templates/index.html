@@ -2489,6 +2489,7 @@
                 updateNavForLogin();
                 updateActiveNavLink();
                 if (state.isLoggedIn) {
+                    validateSession();
                     updateProfileUI();
                 }
                 $('.spinner').css('display', 'none');
@@ -2503,8 +2504,10 @@
 
             $('#profileLink').click(() => {
                 if (state.isLoggedIn) {
-                    showSection('profileSection');
-                    loadProfile();
+                    validateSession(() => {
+                        showSection('profileSection');
+                        loadProfile();
+                    });
                 } else {
                     showAuthPrompt();
                 }
@@ -2564,16 +2567,23 @@
                 }, true, 'application/json', () => {
                     state.isLoginPending = false;
                     $('#loginBtn').removeClass('disabled-btn').prop('disabled', false);
+                    if (!state.isLoggedIn) {
+                        localStorage.clear();
+                        updateNavForLogin();
+                        updateTrialUI();
+                    }
                 });
             });
 
             $('#savePreferences').click(() => {
-                const data = { summary_length: $('#summaryLength').val() };
-                processRequest('/preferences', data, 'profile', () => {
-                    state.preferences = data.summary_length;
-                    localStorage.setItem('preferences', data.summary_length);
-                    updateProfileUI();
-                    showStatus('profile', 'Preferences saved successfully!', false);
+                validateSession(() => {
+                    const data = { summary_length: $('#summaryLength').val() };
+                    processRequest('/preferences', data, 'profile', () => {
+                        state.preferences = data.summary_length;
+                        localStorage.setItem('preferences', data.summary_length);
+                        updateProfileUI();
+                        showStatus('profile', 'Preferences saved successfully!', false);
+                    });
                 });
             });
 
@@ -2632,10 +2642,48 @@
                 $('#summaryLength').val(state.preferences);
             }
 
+            function validateSession(callback) {
+                if (!state.isLoggedIn) {
+                    showAuthPrompt();
+                    return;
+                }
+                $.ajax({
+                    url: '/profile',
+                    method: 'GET',
+                    success: (response) => {
+                        if (response.error) {
+                            handleSessionInvalid();
+                        } else if (callback) {
+                            callback();
+                        }
+                    },
+                    error: () => {
+                        handleSessionInvalid();
+                    }
+                });
+            }
+
+            function handleSessionInvalid() {
+                state.isLoggedIn = false;
+                state.username = '';
+                state.hasUsedTrial = false;
+                state.preferences = '150';
+                state.joinDate = '';
+                localStorage.clear();
+                updateTrialUI();
+                updateNavForLogin();
+                showSection('loginForm');
+                showStatus('login', 'Session expired. Please login again.', true);
+            }
+
             function loadProfile() {
                 if (!state.isLoggedIn) return;
                 showLoading('profile');
                 processRequest('/profile', {}, 'profile', (response) => {
+                    if (response.error && response.error === 'Not authenticated') {
+                        handleSessionInvalid();
+                        return;
+                    }
                     state.username = response.username || state.username;
                     state.joinDate = response.joinDate || state.joinDate;
                     state.preferences = response.preferences || state.preferences;
@@ -2798,13 +2846,13 @@
                         if (xhr.responseJSON && xhr.responseJSON.error) {
                             errorMsg = xhr.responseJSON.error;
                         } else if (xhr.status === 413) {
-                            errorMsg = 'File too large (max 100MB)';
+                            errorMsg = 'File too large (max 10MB)';
                         } else if (xhr.status === 429) {
                             errorMsg = 'Rate limit exceeded. Please try again later.';
                             showStatus(type, errorMsg, true, true);
                             return;
                         } else if (xhr.status === 502) {
-                            errorMsg = 'Server error (502). Please try again later.';
+                            errorMsg = 'Server error (502). Please try again or check server logs.';
                         }
                         showStatus(type, errorMsg, true);
                     }
@@ -2853,7 +2901,10 @@
                     },
                     error: (xhr) => {
                         if (loadingType) hideLoading(loadingType);
-                        const errorMsg = xhr.responseJSON?.error || 'An error occurred. Please try again.';
+                        let errorMsg = xhr.responseJSON?.error || 'An error occurred. Please try again.';
+                        if (xhr.status === 401 && url === '/login') {
+                            errorMsg = 'Invalid username/email or password. Please try again.';
+                        }
                         showStatus(loadingType || 'login', errorMsg, true);
                     },
                     complete: () => {
@@ -2865,6 +2916,3 @@
     </script>
 </body>
 </html>
-
-
-
