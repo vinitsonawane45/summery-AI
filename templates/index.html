@@ -1,841 +1,4 @@
-<!-- <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Saransh AI - Advanced Text Suite</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        :root {
-            --primary: #00a8a8;
-            --secondary: #00c4c4;
-            --background: #f4f7fa;
-            --card-bg: #ffffff;
-            --text: #2d3748;
-            --text-light: #718096;
-            --border: #e2e8f0;
-            --shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-            --accent: #f6e05e;
-            --error: #e53e3e;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        body {
-            font-family: 'Poppins', sans-serif;
-            background: var(--background);
-            color: var(--text);
-            line-height: 1.6;
-            min-height: 100vh;
-            overflow-x: hidden;
-            -webkit-font-smoothing: antialiased;
-        }
-
-        .navbar {
-            background: var(--card-bg);
-            padding: 1rem;
-            box-shadow: var(--shadow);
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-            display: grid;
-            grid-template-columns: auto 1fr auto;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .navbar .logo {
-            font-size: clamp(1.25rem, 4vw, 1.75rem);
-            font-weight: 700;
-            color: var(--primary);
-            letter-spacing: -0.5px;
-        }
-
-        .hamburger {
-            display: block;
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            color: var(--text);
-            cursor: pointer;
-            padding: 0.5rem;
-        }
-
-        .nav-links {
-            display: none;
-            position: fixed;
-            top: 60px;
-            left: 0;
-            width: 100%;
-            background: var(--card-bg);
-            flex-direction: column;
-            padding: 1rem;
-            box-shadow: var(--shadow);
-            transform: translateY(-100%);
-            transition: transform 0.3s ease;
-            z-index: 999;
-        }
-
-        .nav-links.active {
-            display: flex;
-            transform: translateY(0);
-        }
-
-        .nav-links a, .nav-links button {
-            color: var(--text-light);
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 1rem;
-            padding: 0.75rem 1rem;
-            border-radius: 8px;
-            transition: all 0.3s ease;
-            background: none;
-            border: none;
-            cursor: pointer;
-            width: 100%;
-            text-align: left;
-        }
-
-        .nav-links a:hover, .nav-links button:hover {
-            color: var(--primary);
-            background: rgba(0, 168, 168, 0.1);
-        }
-
-        .nav-links .active-link {
-            color: var(--primary);
-            background: rgba(0, 168, 168, 0.15);
-        }
-
-        .main-content {
-            margin: 1rem;
-            display: grid;
-            place-items: center;
-        }
-
-        .tool-container {
-            background: var(--card-bg);
-            border-radius: 12px;
-            box-shadow: var(--shadow);
-            padding: 1rem;
-            width: 100%;
-            max-width: 100%;
-            display: none;
-            transition: opacity 0.3s ease;
-        }
-
-        .tool-container.active {
-            display: block;
-            opacity: 1;
-        }
-
-        .section-title {
-            font-size: clamp(1.25rem, 5vw, 1.8rem);
-            font-weight: 700;
-            margin-bottom: 1rem;
-            color: var(--primary);
-            position: relative;
-        }
-
-        .section-title::after {
-            content: '';
-            position: absolute;
-            bottom: -5px;
-            left: 0;
-            width: 40px;
-            height: 3px;
-            background: var(--primary);
-        }
-
-        .form-group {
-            margin-bottom: 1rem;
-        }
-
-        label {
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-            color: var(--text);
-            font-size: 0.95rem;
-            display: block;
-        }
-
-        input, textarea, select {
-            width: 100%;
-            padding: 0.75rem;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            font-size: 0.95rem;
-            background: #f9fafb;
-            transition: all 0.3s ease;
-            -webkit-appearance: none;
-            touch-action: manipulation;
-        }
-
-        input:focus, textarea:focus, select:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(0, 168, 168, 0.2);
-            outline: none;
-            background: #fff;
-        }
-
-        textarea {
-            resize: vertical;
-            min-height: 80px;
-        }
-
-        button {
-            width: 100%;
-            padding: 0.75rem;
-            background: var(--primary);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 0.95rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            touch-action: manipulation;
-        }
-
-        button:hover {
-            background: var(--secondary);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 168, 168, 0.3);
-        }
-
-        .input-group {
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
-            margin: 1rem 0;
-        }
-
-        .output-box {
-            margin: 1rem 0;
-            padding: 1rem;
-            background: #f9fafb;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            min-height: 100px;
-            font-size: 0.9rem;
-            white-space: pre-wrap;
-            overflow-x: auto;
-        }
-
-        .trial-notice {
-            text-align: center;
-            color: var(--primary);
-            font-weight: 600;
-            background: rgba(0, 168, 168, 0.1);
-            padding: 0.5rem;
-            border-radius: 8px;
-            margin-bottom: 1rem;
-            font-size: 0.85rem;
-        }
-
-        .spinner {
-            width: 24px;
-            height: 24px;
-            margin: 0.75rem auto;
-            border: 3px solid rgba(0, 168, 168, 0.1);
-            border-top: 3px solid var(--primary);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .footer {
-            padding: 1rem;
-            font-size: 0.8rem;
-            text-align: center;
-            background: var(--card-bg);
-            border-top: 1px solid var(--border);
-        }
-
-        body.dark-mode {
-            --background: #1a202c;
-            --card-bg: #2d3748;
-            --text: #e2e8f0;
-            --text-light: #a0aec0;
-            --border: #4a5568;
-            --shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
-        }
-
-        @media (min-width: 768px) {
-            .navbar {
-                padding: 1rem 2rem;
-                grid-template-columns: auto 1fr auto;
-            }
-
-            .hamburger {
-                display: none;
-            }
-
-            .nav-links {
-                display: flex;
-                position: static;
-                flex-direction: row;
-                width: auto;
-                padding: 0;
-                transform: none;
-                box-shadow: none;
-                gap: 1.5rem;
-            }
-
-            .nav-links a, .nav-links button {
-                width: auto;
-            }
-
-            .main-content {
-                margin: 2rem auto;
-                max-width: 1200px;
-                padding: 0 2rem;
-            }
-
-            .tool-container {
-                padding: 2rem;
-                max-width: 800px;
-            }
-
-            .input-group {
-                display: grid;
-                grid-template-columns: 1fr auto;
-                gap: 1rem;
-            }
-
-            button {
-                width: auto;
-            }
-
-            .output-box {
-                min-height: 150px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .navbar {
-                padding: 0.75rem;
-            }
-
-            .tool-container {
-                padding: 0.75rem;
-            }
-
-            .section-title {
-                margin-bottom: 0.75rem;
-            }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-            * {
-                transition: none !important;
-                animation: none !important;
-            }
-        }
-    </style>
-</head>
-<body>
-    <nav class="navbar">
-        <div class="logo">Saransh AI</div>
-        <div></div>
-        <button class="hamburger"><i class="fas fa-bars"></i></button>
-        <div class="nav-links">
-            <a href="#" data-section="pdfSummarizerSection" class="active-link">PDF Summarizer</a>
-            <a href="#" data-section="textAnalyzerSection">Text Analyzer</a>
-            <a href="#" data-section="urlExtractorSection">URL Extractor</a>
-            <a href="#" data-section="keywordExtractorSection">Keyword Extractor</a>
-            <a href="#" data-section="sentimentAnalyzerSection">Sentiment Analyzer</a>
-            <button id="profileLink"><i class="fas fa-user"></i> Profile</button>
-            <button id="darkModeToggle"><i class="fas fa-moon"></i> Dark Mode</button>
-        </div>
-    </nav>
-
-    <main class="main-content">
-        <section id="pdfSummarizerSection" class="tool-container active">
-            <h2 class="section-title">PDF Summarizer</h2>
-            <div class="trial-notice" id="trialMessage">Try our tools free once!</div>
-            <div class="form-group">
-                <label for="pdfUpload">Upload PDF</label>
-                <input type="file" id="pdfUpload" accept=".pdf">
-            </div>
-            <button id="summarizePdfBtn">Summarize</button>
-            <div id="pdfStatus" class="status hidden"></div>
-            <div id="pdfSummary" class="output-box"></div>
-            <div id="pdfSpinner" class="spinner hidden"></div>
-        </section>
-
-        <section id="textAnalyzerSection" class="tool-container">
-            <h2 class="section-title">Text Analyzer</h2>
-            <div class="form-group">
-                <label for="textInput">Text to Analyze</label>
-                <textarea id="textInput" placeholder="Enter text to analyze"></textarea>
-            </div>
-            <button id="analyzeTextBtn">Analyze</button>
-            <div id="textStatus" class="status hidden"></div>
-            <div id="textAnalysis" class="output-box"></div>
-            <div id="textSpinner" class="spinner hidden"></div>
-        </section>
-
-        <section id="urlExtractorSection" class="tool-container">
-            <h2 class="section-title">URL Extractor</h2>
-            <div class="input-group">
-                <input type="text" id="urlInput" placeholder="Enter URL to extract content">
-                <button id="extractUrlBtn">Extract</button>
-            </div>
-            <div id="urlStatus" class="status hidden"></div>
-            <div id="urlContent" class="output-box"></div>
-            <div id="urlSpinner" class="spinner hidden"></div>
-        </section>
-
-        <section id="keywordExtractorSection" class="tool-container">
-            <h2 class="section-title">Keyword Extractor</h2>
-            <div class="form-group">
-                <label for="keywordInput">Text for Keywords</label>
-                <textarea id="keywordInput" placeholder="Enter text to extract keywords"></textarea>
-            </div>
-            <button id="extractKeywordsBtn">Extract Keywords</button>
-            <div id="keywordStatus" class="status hidden"></div>
-            <div id="keywordOutput" class="output-box"></div>
-            <div id="keywordSpinner" class="spinner hidden"></div>
-        </section>
-
-        <section id="sentimentAnalyzerSection" class="tool-container">
-            <h2 class="section-title">Sentiment Analyzer</h2>
-            <div class="form-group">
-                <label for="sentimentInput">Text for Sentiment</label>
-                <textarea id="sentimentInput" placeholder="Enter text to analyze sentiment"></textarea>
-            </div>
-            <button id="analyzeSentimentBtn">Analyze Sentiment</button>
-            <div id="sentimentStatus" class="status hidden"></div>
-            <div id="sentimentOutput" class="output-box"></div>
-            <div id="sentimentSpinner" class="spinner hidden"></div>
-        </section>
-
-        <section id="registerForm" class="tool-container">
-            <h2 class="section-title">Create Account</h2>
-            <div class="form-group">
-                <label for="registerUsername">Username</label>
-                <input type="text" id="registerUsername" placeholder="Min 3 characters" required>
-            </div>
-            <div class="form-group">
-                <label for="registerEmail">Email</label>
-                <input type="email" id="registerEmail" placeholder="Enter your email" required>
-            </div>
-            <div class="form-group">
-                <label for="registerPassword">Password</label>
-                <input type="password" id="registerPassword" placeholder="Min 8 characters" required>
-            </div>
-            <button id="registerBtn">Sign Up</button>
-            <p class="status">Already have an account? <a href="#" id="showLogin">Login</a></p>
-        </section>
-
-        <section id="loginForm" class="tool-container">
-            <h2 class="section-title">Sign In</h2>
-            <div class="form-group">
-                <label for="loginIdentifier">Username or Email</label>
-                <input type="text" id="loginIdentifier" placeholder="Enter username or email" required>
-            </div>
-            <div class="form-group">
-                <label for="loginPassword">Password</label>
-                <input type="password" id="loginPassword" placeholder="Enter your password" required>
-            </div>
-            <button id="loginBtn">Login</button>
-            <div id="loginStatus" class="status hidden"></div>
-            <p class="status">New user? <a href="#" id="showRegister">Register</a></p>
-        </section>
-
-        <section id="profileSection" class="tool-container">
-            <h2 class="section-title">Profile</h2>
-            <div class="profile-info">
-                <div class="avatar" id="userAvatar"></div>
-                <div>
-                    <h3 id="usernameDisplay"></h3>
-                    <p class="status">Member since: <span id="joinDate"></span></p>
-                </div>
-            </div>
-            <div class="form-group">
-                <label for="summaryLength">Summary Length Preference</label>
-                <select id="summaryLength">
-                    <option value="100">Short (100 words)</option>
-                    <option value="150">Medium (150 words)</option>
-                    <option value="200">Long (200 words)</option>
-                </select>
-            </div>
-            <button id="savePreferences">Save Preferences</button>
-            <button id="logoutBtn" style="margin-top: 1rem;">Sign Out</button>
-            <div id="profileStatus" class="status hidden"></div>
-        </section>
-    </main>
-
-    <footer class="footer">
-        <p>© 2025 Saransh AI. All rights reserved.</p>
-        <p>
-            <a href="#" data-section="pdfSummarizerSection">PDF Summarizer</a> |
-            <a href="#" data-section="textAnalyzerSection">Text Analyzer</a> |
-            <a href="#" data-section="urlExtractorSection">URL Extractor</a> |
-            <a href="#" data-section="keywordExtractorSection">Keyword Extractor</a> |
-            <a href="#" data-section="sentimentAnalyzerSection">Sentiment Analyzer</a>
-        </p>
-    </footer>
-
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script>
-        $(document).ready(function() {
-            let state = {
-                isLoggedIn: localStorage.getItem('isLoggedIn') === 'true',
-                hasUsedTrial: localStorage.getItem('hasUsedTrial') === 'true',
-                username: localStorage.getItem('username') || '',
-                joinDate: localStorage.getItem('joinDate') || new Date().toLocaleDateString(),
-                preferences: localStorage.getItem('preferences') || '150',
-                activeSection: 'pdfSummarizerSection',
-                isLoginPending: false
-            };
-
-            initUI();
-
-            function initUI() {
-                updateTrialUI();
-                updateNavForLogin();
-                updateActiveNavLink();
-                if (state.isLoggedIn) {
-                    updateProfileUI();
-                }
-            }
-
-            $('.hamburger').click(function() {
-                $('.nav-links').toggleClass('active');
-                $(this).html($('.nav-links').hasClass('active') ? '<i class="fas fa-times"></i>' : '<i class="fas fa-bars"></i>');
-            });
-
-            $('#darkModeToggle').click(() => $('body').toggleClass('dark-mode'));
-
-            $('#profileLink').click(() => {
-                if (state.isLoggedIn) {
-                    showSection('profileSection');
-                    loadProfile();
-                } else {
-                    showAuthPrompt();
-                }
-                $('.nav-links').removeClass('active');
-                $('.hamburger').html('<i class="fas fa-bars"></i>');
-            });
-
-            $('.nav-links a').click(function(e) {
-                e.preventDefault();
-                const sectionId = $(this).data('section');
-                showSection(sectionId);
-                $('.nav-links').removeClass('active');
-                $('.hamburger').html('<i class="fas fa-bars"></i>');
-            });
-
-            $('#showLogin').click((e) => { e.preventDefault(); showSection('loginForm'); });
-            $('#showRegister').click((e) => { e.preventDefault(); showSection('registerForm'); });
-
-            $('#registerBtn').click(() => {
-                const data = {
-                    username: $('#registerUsername').val().trim(),
-                    email: $('#registerEmail').val().trim(),
-                    password: $('#registerPassword').val()
-                };
-                if (!validateForm(data, ['username', 'email', 'password'])) return;
-                processRequest('/register', data, 'register', () => {
-                    showSection('loginForm');
-                    showStatus('login', 'Registration successful! Please login.', false);
-                });
-            });
-
-            $('#loginBtn').click(() => {
-                if (state.isLoginPending) return;
-
-                const data = {
-                    identifier: $('#loginIdentifier').val().trim(),
-                    password: $('#loginPassword').val()
-                };
-                if (!validateForm(data, ['identifier', 'password'])) return;
-
-                state.isLoginPending = true;
-                $('#loginBtn').addClass('disabled-btn').prop('disabled', true);
-                
-                processRequest('/login', data, 'login', (response) => {
-                    state.isLoggedIn = true;
-                    state.username = response.username;
-                    state.joinDate = response.joinDate || new Date().toLocaleDateString();
-                    state.hasUsedTrial = false;
-                    state.preferences = response.preferences || '150';
-                    
-                    localStorage.setItem('isLoggedIn', 'true');
-                    localStorage.setItem('username', state.username);
-                    localStorage.setItem('joinDate', state.joinDate);
-                    localStorage.setItem('hasUsedTrial', 'false');
-                    localStorage.setItem('preferences', state.preferences);
-
-                    updateProfileUI();
-                    updateNavForLogin();
-                    updateTrialUI();
-                    showSection('profileSection');
-                    showStatus('profile', `Welcome back, ${state.username}! Login successful.`, false);
-                }, true, 'application/x-www-form-urlencoded', () => {
-                    state.isLoginPending = false;
-                    $('#loginBtn').removeClass('disabled-btn').prop('disabled', false);
-                });
-            });
-
-            $('#savePreferences').click(() => {
-                const summaryLength = parseInt($('#summaryLength').val());
-                processRequest('/preferences', { summary_length: summaryLength }, 'profile', () => {
-                    state.preferences = summaryLength;
-                    localStorage.setItem('preferences', summaryLength);
-                    updateProfileUI();
-                    showStatus('profile', 'Preferences saved successfully!', false);
-                });
-            });
-
-            $('#summarizePdfBtn').click(() => processToolRequest('/summarize', 'pdf', getPdfData));
-            $('#analyzeTextBtn').click(() => processToolRequest('/analyze', 'text', getTextData));
-            $('#extractUrlBtn').click(() => processToolRequest('/extract', 'url', getUrlData));
-            $('#extractKeywordsBtn').click(() => processToolRequest('/keywords', 'keyword', getKeywordData));
-            $('#analyzeSentimentBtn').click(() => processToolRequest('/sentiment', 'sentiment', getSentimentData));
-
-            $('#logoutBtn').click(() => {
-                processRequest('/logout', {}, null, () => {
-                    state.isLoggedIn = false;
-                    state.username = '';
-                    state.hasUsedTrial = false;
-                    state.preferences = '150';
-                    state.joinDate = '';
-                    
-                    localStorage.clear();
-                    
-                    updateTrialUI();
-                    updateNavForLogin();
-                    showSection('pdfSummarizerSection');
-                    showStatus('pdf', 'Logged out successfully!', false);
-                });
-            });
-
-            function showSection(sectionId) {
-                state.activeSection = sectionId;
-                $('.tool-container').removeClass('active').css('opacity', 0);
-                $(`#${sectionId}`).addClass('active').css('opacity', 1);
-                updateActiveNavLink();
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
-
-            function updateActiveNavLink() {
-                $('.nav-links a').removeClass('active-link');
-                $(`.nav-links a[data-section="${state.activeSection}"]`).addClass('active-link');
-            }
-
-            function showAuthPrompt() {
-                showSection('loginForm');
-            }
-
-            function updateTrialUI() {
-                $('#trialMessage').toggleClass('hidden', state.isLoggedIn)
-                    .text(state.hasUsedTrial ? 'Trial used! Please login or register.' : 'Try our tools free once!');
-            }
-
-            function updateNavForLogin() {
-                $('#profileLink').html(state.isLoggedIn ? `<i class="fas fa-user"></i> ${state.username}` : '<i class="fas fa-user"></i> Profile');
-            }
-
-            function updateProfileUI() {
-                if (!state.isLoggedIn) return;
-                $('#userAvatar').text(state.username.charAt(0).toUpperCase());
-                $('#usernameDisplay').text(state.username);
-                $('#joinDate').text(state.joinDate);
-                $('#summaryLength').val(state.preferences);
-            }
-
-            function loadProfile() {
-                if (!state.isLoggedIn) return;
-                showLoading('profile');
-                processRequest('/profile', {}, 'profile', (response) => {
-                    state.username = response.username || state.username;
-                    state.joinDate = response.joinDate || state.joinDate;
-                    state.preferences = response.preferences || state.preferences;
-                    
-                    localStorage.setItem('username', state.username);
-                    localStorage.setItem('joinDate', state.joinDate);
-                    localStorage.setItem('preferences', state.preferences);
-                    
-                    updateProfileUI();
-                    showStatus('profile', 'Profile loaded successfully!', false);
-                });
-            }
-
-            function showLoading(type) {
-                $(`#${type}Spinner`).removeClass('hidden');
-                $(`#${type}Status`).addClass('hidden').removeClass('error success rate-limit');
-                $(`#${type}Summary, #${type}Analysis, #${type}Content, #${type}Output`).text('');
-            }
-
-            function hideLoading(type) {
-                $(`#${type}Spinner`).addClass('hidden');
-            }
-
-            function showStatus(type, message, isError = false, isRateLimit = false) {
-                const statusElement = $(`#${type}Status`);
-                statusElement
-                    .text(message)
-                    .removeClass('hidden error success rate-limit')
-                    .addClass(isError ? 'error' : isRateLimit ? 'rate-limit' : 'success');
-                setTimeout(() => statusElement.addClass('hidden'), 5000);
-            }
-
-            function validateForm(data, requiredFields) {
-                for (const field of requiredFields) {
-                    if (!data[field]) {
-                        showStatus(state.activeSection.split('Section')[0], `${field.charAt(0).toUpperCase() + field.slice(1)} is required!`, true);
-                        return false;
-                    }
-                }
-                return true;
-            }
-
-            function getPdfData() {
-                const pdfFile = $('#pdfUpload')[0].files[0];
-                if (!pdfFile) {
-                    showStatus('pdf', 'Please upload a PDF file!', true);
-                    return null;
-                }
-                const formData = new FormData();
-                formData.append('pdf_file', pdfFile);
-                return { data: formData, processData: false, contentType: false };
-            }
-
-            function getTextData() {
-                const text = $('#textInput').val().trim();
-                if (!text) {
-                    showStatus('text', 'Please enter text to analyze!', true);
-                    return null;
-                }
-                return { data: { text: text } };
-            }
-
-            function getUrlData() {
-                const url = $('#urlInput').val().trim();
-                if (!url) {
-                    showStatus('url', 'Please enter a URL!', true);
-                    return null;
-                }
-                return { data: { url: url } };
-            }
-
-            function getKeywordData() {
-                const text = $('#keywordInput').val().trim();
-                if (!text) {
-                    showStatus('keyword', 'Please enter text for keyword extraction!', true);
-                    return null;
-                }
-                return { data: { text: text } };
-            }
-
-            function getSentimentData() {
-                const text = $('#sentimentInput').val().trim();
-                if (!text) {
-                    showStatus('sentiment', 'Please enter text for sentiment analysis!', true);
-                    return null;
-                }
-                return { data: { text: text } };
-            }
-
-            function processToolRequest(url, type, getDataFn) {
-                if (!state.isLoggedIn && state.hasUsedTrial) {
-                    showAuthPrompt();
-                    return;
-                }
-                const result = getDataFn();
-                if (!result) return;
-                
-                const { data, processData = true, contentType = 'application/json' } = result;
-                
-                showLoading(type);
-                
-                $.ajax({
-                    url: url,
-                    method: 'POST',
-                    data: processData ? JSON.stringify(data) : data,
-                    contentType: contentType,
-                    processData: processData,
-                    success: (response) => {
-                        hideLoading(type);
-                        if (response.error) {
-                            showStatus(type, response.error, true);
-                            return;
-                        }
-                        
-                        if (url === '/summarize') {
-                            $('#pdfSummary').text(response.summary || response.result);
-                        } else if (url === '/analyze') {
-                            $('#textAnalysis').text(response.analysis || response.result);
-                        } else if (url === '/extract') {
-                            $('#urlContent').text(response.content || response.result);
-                        } else if (url === '/keywords') {
-                            $('#keywordOutput').text(response.keywords || response.result);
-                        } else if (url === '/sentiment') {
-                            $('#sentimentOutput').text(response.sentiment || response.result);
-                        }
-                        
-                        showStatus(type, 'Operation completed successfully!', false);
-                        
-                        if (!state.isLoggedIn) {
-                            state.hasUsedTrial = true;
-                            localStorage.setItem('hasUsedTrial', 'true');
-                            updateTrialUI();
-                        }
-                    },
-                    error: (xhr) => {
-                        hideLoading(type);
-                        const errorMsg = xhr.responseJSON?.error || 'An error occurred. Please try again.';
-                        showStatus(type, errorMsg, true);
-                    }
-                });
-            }
-
-            function processRequest(url, data, loadingType, successCallback, processData = true, contentType = 'application/json', completeCallback) {
-                if (loadingType) showLoading(loadingType);
-                
-                $.ajax({
-                    url: url,
-                    method: url === '/profile' ? 'GET' : 'POST',
-                    data: processData ? JSON.stringify(data) : data,
-                    contentType: contentType,
-                    processData: processData,
-                    success: (response) => {
-                        if (loadingType) hideLoading(loadingType);
-                        if (response.error) {
-                            showStatus(loadingType || 'login', response.error, true);
-                            return;
-                        }
-                        if (successCallback) successCallback(response);
-                    },
-                    error: (xhr) => {
-                        if (loadingType) hideLoading(loadingType);
-                        const errorMsg = xhr.responseJSON?.error || 'An error occurred. Please try again.';
-                        showStatus(loadingType || 'login', errorMsg, true);
-                    },
-                    complete: () => {
-                        if (completeCallback) completeCallback();
-                    }
-                });
-            }
-        });
-    </script>
-</body>
-</html> 
-
- -->
-
- <!DOCTYPE html>
+<!--  <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -1668,4 +831,830 @@
         });
     </script>
 <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'927ce965e96d7bc9',t:'MTc0MzIyNTU2MC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
+ -->
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Saransh AI - Advanced Text Suite</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #00a8a8;
+            --secondary: #00c4c4;
+            --background: #f4f7fa;
+            --card-bg: #ffffff;
+            --text: #2d3748;
+            --text-light: #718096;
+            --border: #e2e8f0;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            --accent: #f6e05e;
+            --error: #e53e3e;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: var(--background);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .navbar {
+            background: var(--card-bg);
+            padding: 1rem;
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .navbar .logo {
+            font-size: clamp(1.25rem, 4vw, 1.75rem);
+            font-weight: 700;
+            color: var(--primary);
+            letter-spacing: -0.5px;
+        }
+
+        .hamburger {
+            display: block;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--text);
+            cursor: pointer;
+            padding: 0.5rem;
+        }
+
+        .nav-links {
+            display: none;
+            position: fixed;
+            top: 60px;
+            left: 0;
+            width: 100%;
+            background: var(--card-bg);
+            flex-direction: column;
+            padding: 1rem;
+            box-shadow: var(--shadow);
+            transform: translateY(-100%);
+            transition: transform 0.3s ease;
+            z-index: 999;
+        }
+
+        .nav-links.active {
+            display: flex;
+            transform: translateY(0);
+        }
+
+        .nav-links a, .nav-links button {
+            color: var(--text-light);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1rem;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            background: none;
+            border: none;
+            cursor: pointer;
+            width: 100%;
+            text-align: left;
+        }
+
+        .nav-links a:hover, .nav-links button:hover {
+            color: var(--primary);
+            background: rgba(0, 168, 168, 0.1);
+        }
+
+        .nav-links .active-link {
+            color: var(--primary);
+            background: rgba(0, 168, 168, 0.15);
+        }
+
+        .main-content {
+            margin: 1rem;
+            display: grid;
+            place-items: center;
+        }
+
+        .tool-container {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            padding: 1rem;
+            width: 100%;
+            max-width: 100%;
+            display: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .tool-container.active {
+            display: block;
+            opacity: 1;
+        }
+
+        .section-title {
+            font-size: clamp(1.25rem, 5vw, 1.8rem);
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: var(--primary);
+            position: relative;
+        }
+
+        .section-title::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 40px;
+            height: 3px;
+            background: var(--primary);
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text);
+            font-size: 0.95rem;
+            display: block;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.95rem;
+            background: #f9fafb;
+            transition: all 0.3s ease;
+            -webkit-appearance: none;
+            touch-action: manipulation;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(0, 168, 168, 0.2);
+            outline: none;
+            background: #fff;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            touch-action: manipulation;
+        }
+
+        button:hover {
+            background: var(--secondary);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 168, 168, 0.3);
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin: 1rem 0;
+        }
+
+        .output-box {
+            margin: 1rem 0;
+            padding: 1rem;
+            background: #f9fafb;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            min-height: 100px;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+
+        .trial-notice {
+            text-align: center;
+            color: var(--primary);
+            font-weight: 600;
+            background: rgba(0, 168, 168, 0.1);
+            padding: 0.5rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-size: 0.85rem;
+        }
+
+        .spinner {
+            width: 24px;
+            height: 24px;
+            margin: 0.75rem auto;
+            border: 3px solid rgba(0, 168, 168, 0.1);
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .footer {
+            padding: 1rem;
+            font-size: 0.8rem;
+            text-align: center;
+            background: var(--card-bg);
+            border-top: 1px solid var(--border);
+        }
+
+        body.dark-mode {
+            --background: #1a202c;
+            --card-bg: #2d3748;
+            --text: #e2e8f0;
+            --text-light: #a0aec0;
+            --border: #4a5568;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        @media (min-width: 768px) {
+            .navbar {
+                padding: 1rem 2rem;
+                grid-template-columns: auto 1fr auto;
+            }
+
+            .hamburger {
+                display: none;
+            }
+
+            .nav-links {
+                display: flex;
+                position: static;
+                flex-direction: row;
+                width: auto;
+                padding: 0;
+                transform: none;
+                box-shadow: none;
+                gap: 1.5rem;
+            }
+
+            .nav-links a, .nav-links button {
+                width: auto;
+            }
+
+            .main-content {
+                margin: 2rem auto;
+                max-width: 1200px;
+                padding: 0 2rem;
+            }
+
+            .tool-container {
+                padding: 2rem;
+                max-width: 800px;
+            }
+
+            .input-group {
+                display: grid;
+                grid-template-columns: 1fr auto;
+                gap: 1rem;
+            }
+
+            button {
+                width: auto;
+            }
+
+            .output-box {
+                min-height: 150px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .navbar {
+                padding: 0.75rem;
+            }
+
+            .tool-container {
+                padding: 0.75rem;
+            }
+
+            .section-title {
+                margin-bottom: 0.75rem;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                transition: none !important;
+                animation: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">Saransh AI</div>
+        <div></div>
+        <button class="hamburger"><i class="fas fa-bars"></i></button>
+        <div class="nav-links">
+            <a href="#" data-section="pdfSummarizerSection" class="active-link">PDF Summarizer</a>
+            <a href="#" data-section="textAnalyzerSection">Text Analyzer</a>
+            <a href="#" data-section="urlExtractorSection">URL Extractor</a>
+            <a href="#" data-section="keywordExtractorSection">Keyword Extractor</a>
+            <a href="#" data-section="sentimentAnalyzerSection">Sentiment Analyzer</a>
+            <button id="profileLink"><i class="fas fa-user"></i> Profile</button>
+            <button id="darkModeToggle"><i class="fas fa-moon"></i> Dark Mode</button>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <section id="pdfSummarizerSection" class="tool-container active">
+            <h2 class="section-title">PDF Summarizer</h2>
+            <div class="trial-notice" id="trialMessage">Try our tools free once!</div>
+            <div class="form-group">
+                <label for="pdfUpload">Upload PDF (Max 100MB)</label>
+                <input type="file" id="pdfUpload" accept=".pdf">
+            </div>
+            <button id="summarizePdfBtn">Summarize</button>
+            <div id="pdfStatus" class="status hidden"></div>
+            <div id="pdfSummary" class="output-box"></div>
+            <div id="pdfSpinner" class="spinner hidden"></div>
+        </section>
+
+        <section id="textAnalyzerSection" class="tool-container">
+            <h2 class="section-title">Text Analyzer</h2>
+            <div class="form-group">
+                <label for="textInput">Text to Analyze</label>
+                <textarea id="textInput" placeholder="Enter text to analyze"></textarea>
+            </div>
+            <button id="analyzeTextBtn">Analyze</button>
+            <div id="textStatus" class="status hidden"></div>
+            <div id="textAnalysis" class="output-box"></div>
+            <div id="textSpinner" class="spinner hidden"></div>
+        </section>
+
+        <section id="urlExtractorSection" class="tool-container">
+            <h2 class="section-title">URL Extractor</h2>
+            <div class="input-group">
+                <input type="text" id="urlInput" placeholder="Enter URL to extract content">
+                <button id="extractUrlBtn">Extract</button>
+            </div>
+            <div id="urlStatus" class="status hidden"></div>
+            <div id="urlContent" class="output-box"></div>
+            <div id="urlSpinner" class="spinner hidden"></div>
+        </section>
+
+        <section id="keywordExtractorSection" class="tool-container">
+            <h2 class="section-title">Keyword Extractor</h2>
+            <div class="form-group">
+                <label for="keywordInput">Text for Keywords</label>
+                <textarea id="keywordInput" placeholder="Enter text to extract keywords"></textarea>
+            </div>
+            <button id="extractKeywordsBtn">Extract Keywords</button>
+            <div id="keywordStatus" class="status hidden"></div>
+            <div id="keywordOutput" class="output-box"></div>
+            <div id="keywordSpinner" class="spinner hidden"></div>
+        </section>
+
+        <section id="sentimentAnalyzerSection" class="tool-container">
+            <h2 class="section-title">Sentiment Analyzer</h2>
+            <div class="form-group">
+                <label for="sentimentInput">Text for Sentiment</label>
+                <textarea id="sentimentInput" placeholder="Enter text to analyze sentiment"></textarea>
+            </div>
+            <button id="analyzeSentimentBtn">Analyze Sentiment</button>
+            <div id="sentimentStatus" class="status hidden"></div>
+            <div id="sentimentOutput" class="output-box"></div>
+            <div id="sentimentSpinner" class="spinner hidden"></div>
+        </section>
+
+        <section id="registerForm" class="tool-container">
+            <h2 class="section-title">Create Account</h2>
+            <div class="form-group">
+                <label for="registerUsername">Username</label>
+                <input type="text" id="registerUsername" placeholder="Min 3 characters" required>
+            </div>
+            <div class="form-group">
+                <label for="registerEmail">Email</label>
+                <input type="email" id="registerEmail" placeholder="Enter your email" required>
+            </div>
+            <div class="form-group">
+                <label for="registerPassword">Password</label>
+                <input type="password" id="registerPassword" placeholder="Min 8 characters" required>
+            </div>
+            <button id="registerBtn">Sign Up</button>
+            <p class="status">Already have an account? <a href="#" id="showLogin">Login</a></p>
+        </section>
+
+        <section id="loginForm" class="tool-container">
+            <h2 class="section-title">Sign In</h2>
+            <div class="form-group">
+                <label for="loginIdentifier">Username or Email</label>
+                <input type="text" id="loginIdentifier" placeholder="Enter username or email" required>
+            </div>
+            <div class="form-group">
+                <label for="loginPassword">Password</label>
+                <input type="password" id="loginPassword" placeholder="Enter your password" required>
+            </div>
+            <button id="loginBtn">Login</button>
+            <div id="loginStatus" class="status hidden"></div>
+            <p class="status">New user? <a href="#" id="showRegister">Register</a></p>
+        </section>
+
+        <section id="profileSection" class="tool-container">
+            <h2 class="section-title">Profile</h2>
+            <div class="profile-info">
+                <div class="avatar" id="userAvatar"></div>
+                <div>
+                    <h3 id="usernameDisplay"></h3>
+                    <p class="status">Member since: <span id="joinDate"></span></p>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="summaryLength">Summary Length Preference</label>
+                <select id="summaryLength">
+                    <option value="100">Short (100 words)</option>
+                    <option value="150">Medium (150 words)</option>
+                    <option value="200">Long (200 words)</option>
+                </select>
+            </div>
+            <button id="savePreferences">Save Preferences</button>
+            <button id="logoutBtn" style="margin-top: 1rem;">Sign Out</button>
+            <div id="profileStatus" class="status hidden"></div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <p>© 2025 Saransh AI. All rights reserved.</p>
+        <p>
+            <a href="#" data-section="pdfSummarizerSection">PDF Summarizer</a> |
+            <a href="#" data-section="textAnalyzerSection">Text Analyzer</a> |
+            <a href="#" data-section="urlExtractorSection">URL Extractor</a> |
+            <a href="#" data-section="keywordExtractorSection">Keyword Extractor</a> |
+            <a href="#" data-section="sentimentAnalyzerSection">Sentiment Analyzer</a>
+        </p>
+    </footer>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            let state = {
+                isLoggedIn: localStorage.getItem('isLoggedIn') === 'true',
+                hasUsedTrial: localStorage.getItem('hasUsedTrial') === 'true',
+                username: localStorage.getItem('username') || '',
+                joinDate: localStorage.getItem('joinDate') || new Date().toLocaleDateString(),
+                preferences: localStorage.getItem('preferences') || '150',
+                activeSection: 'pdfSummarizerSection',
+                isLoginPending: false
+            };
+
+            initUI();
+
+            function initUI() {
+                updateTrialUI();
+                updateNavForLogin();
+                updateActiveNavLink();
+                if (state.isLoggedIn) {
+                    updateProfileUI();
+                }
+            }
+
+            $('.hamburger').click(function() {
+                $('.nav-links').toggleClass('active');
+                $(this).html($('.nav-links').hasClass('active') ? '<i class="fas fa-times"></i>' : '<i class="fas fa-bars"></i>');
+            });
+
+            $('#darkModeToggle').click(() => $('body').toggleClass('dark-mode'));
+
+            $('#profileLink').click(() => {
+                if (state.isLoggedIn) {
+                    showSection('profileSection');
+                    loadProfile();
+                } else {
+                    showAuthPrompt();
+                }
+                $('.nav-links').removeClass('active');
+                $('.hamburger').html('<i class="fas fa-bars"></i>');
+            });
+
+            $('.nav-links a').click(function(e) {
+                e.preventDefault();
+                const sectionId = $(this).data('section');
+                showSection(sectionId);
+                $('.nav-links').removeClass('active');
+                $('.hamburger').html('<i class="fas fa-bars"></i>');
+            });
+
+            $('#showLogin').click((e) => { e.preventDefault(); showSection('loginForm'); });
+            $('#showRegister').click((e) => { e.preventDefault(); showSection('registerForm'); });
+
+            $('#registerBtn').click(() => {
+                const data = {
+                    username: $('#registerUsername').val().trim(),
+                    email: $('#registerEmail').val().trim(),
+                    password: $('#registerPassword').val()
+                };
+                if (!validateForm(data, ['username', 'email', 'password'])) return;
+                processRequest('/register', data, 'register', () => {
+                    showSection('loginForm');
+                    showStatus('login', 'Registration successful! Please login.', false);
+                });
+            });
+
+            $('#loginBtn').click(() => {
+                if (state.isLoginPending) return;
+                const data = {
+                    identifier: $('#loginIdentifier').val().trim(),
+                    password: $('#loginPassword').val()
+                };
+                if (!validateForm(data, ['identifier', 'password'])) return;
+                state.isLoginPending = true;
+                $('#loginBtn').addClass('disabled-btn').prop('disabled', true);
+                processRequest('/login', data, 'login', (response) => {
+                    state.isLoggedIn = true;
+                    state.username = response.username;
+                    state.joinDate = response.joinDate || new Date().toLocaleDateString();
+                    state.hasUsedTrial = false;
+                    state.preferences = response.preferences || '150';
+                    localStorage.setItem('isLoggedIn', 'true');
+                    localStorage.setItem('username', state.username);
+                    localStorage.setItem('joinDate', state.joinDate);
+                    localStorage.setItem('hasUsedTrial', 'false');
+                    localStorage.setItem('preferences', state.preferences);
+                    updateProfileUI();
+                    updateNavForLogin();
+                    updateTrialUI();
+                    showSection('profileSection');
+                    showStatus('profile', `Welcome back, ${state.username}!`, false);
+                }, true, 'application/json', () => {
+                    state.isLoginPending = false;
+                    $('#loginBtn').removeClass('disabled-btn').prop('disabled', false);
+                });
+            });
+
+            $('#savePreferences').click(() => {
+                const data = { summary_length: parseInt($('#summaryLength').val()) };
+                processRequest('/preferences', data, 'profile', () => {
+                    state.preferences = data.summary_length;
+                    localStorage.setItem('preferences', data.summary_length);
+                    updateProfileUI();
+                    showStatus('profile', 'Preferences saved successfully!', false);
+                });
+            });
+
+            $('#summarizePdfBtn').click(() => processToolRequest('/summarize', 'pdf', getPdfData));
+            $('#analyzeTextBtn').click(() => processToolRequest('/analyze', 'text', getTextData));
+            $('#extractUrlBtn').click(() => processToolRequest('/extract', 'url', getUrlData));
+            $('#extractKeywordsBtn').click(() => processToolRequest('/keywords', 'keyword', getKeywordData));
+            $('#analyzeSentimentBtn').click(() => processToolRequest('/sentiment', 'sentiment', getSentimentData));
+
+            $('#logoutBtn').click(() => {
+                processRequest('/logout', {}, null, () => {
+                    state.isLoggedIn = false;
+                    state.username = '';
+                    state.hasUsedTrial = false;
+                    state.preferences = '150';
+                    state.joinDate = '';
+                    localStorage.clear();
+                    updateTrialUI();
+                    updateNavForLogin();
+                    showSection('pdfSummarizerSection');
+                    showStatus('pdf', 'Logged out successfully!', false);
+                });
+            });
+
+            function showSection(sectionId) {
+                state.activeSection = sectionId;
+                $('.tool-container').removeClass('active').css('opacity', 0);
+                $(`#${sectionId}`).addClass('active').css('opacity', 1);
+                updateActiveNavLink();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+
+            function updateActiveNavLink() {
+                $('.nav-links a').removeClass('active-link');
+                $(`.nav-links a[data-section="${state.activeSection}"]`).addClass('active-link');
+            }
+
+            function showAuthPrompt() {
+                showSection('loginForm');
+            }
+
+            function updateTrialUI() {
+                $('#trialMessage').toggleClass('hidden', state.isLoggedIn)
+                    .text(state.hasUsedTrial ? 'Trial used! Please login or register.' : 'Try our tools free once!');
+            }
+
+            function updateNavForLogin() {
+                $('#profileLink').html(state.isLoggedIn ? `<i class="fas fa-user"></i> ${state.username}` : '<i class="fas fa-user"></i> Profile');
+            }
+
+            function updateProfileUI() {
+                if (!state.isLoggedIn) return;
+                $('#userAvatar').text(state.username.charAt(0).toUpperCase());
+                $('#usernameDisplay').text(state.username);
+                $('#joinDate').text(state.joinDate);
+                $('#summaryLength').val(state.preferences);
+            }
+
+            function loadProfile() {
+                if (!state.isLoggedIn) return;
+                showLoading('profile');
+                processRequest('/profile', {}, 'profile', (response) => {
+                    state.username = response.username || state.username;
+                    state.joinDate = response.joinDate || state.joinDate;
+                    state.preferences = response.preferences || state.preferences;
+                    localStorage.setItem('username', state.username);
+                    localStorage.setItem('joinDate', state.joinDate);
+                    localStorage.setItem('preferences', state.preferences);
+                    updateProfileUI();
+                    showStatus('profile', 'Profile loaded successfully!', false);
+                });
+            }
+
+            function showLoading(type) {
+                $(`#${type}Spinner`).removeClass('hidden');
+                $(`#${type}Status`).addClass('hidden').removeClass('error success rate-limit');
+                $(`#${type}Summary, #${type}Analysis, #${type}Content, #${type}Output`).text('');
+            }
+
+            function hideLoading(type) {
+                $(`#${type}Spinner`).addClass('hidden');
+            }
+
+            function showStatus(type, message, isError = false, isRateLimit = false) {
+                const statusElement = $(`#${type}Status`);
+                statusElement
+                    .text(message)
+                    .removeClass('hidden error success rate-limit')
+                    .addClass(isError ? 'error' : isRateLimit ? 'rate-limit' : 'success');
+                setTimeout(() => statusElement.addClass('hidden'), 5000);
+            }
+
+            function validateForm(data, requiredFields) {
+                for (const field of requiredFields) {
+                    if (!data[field]) {
+                        showStatus(state.activeSection.split('Section')[0], `${field.charAt(0).toUpperCase() + field.slice(1)} is required!`, true);
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            function getPdfData() {
+                const pdfFile = $('#pdfUpload')[0].files[0];
+                if (!pdfFile) {
+                    showStatus('pdf', 'Please upload a PDF file!', true);
+                    return null;
+                }
+                const maxSize = 100 * 1024 * 1024; // 100MB in bytes
+                if (pdfFile.size > maxSize) {
+                    showStatus('pdf', 'File size exceeds 100MB limit!', true);
+                    return null;
+                }
+                const formData = new FormData();
+                formData.append('pdf_file', pdfFile);
+                return { data: formData, processData: false, contentType: false };
+            }
+
+            function getTextData() {
+                const text = $('#textInput').val().trim();
+                if (!text) {
+                    showStatus('text', 'Please enter text to analyze!', true);
+                    return null;
+                }
+                return { data: { text: text } };
+            }
+
+            function getUrlData() {
+                const url = $('#urlInput').val().trim();
+                if (!url) {
+                    showStatus('url', 'Please enter a URL!', true);
+                    return null;
+                }
+                return { data: { url: url } };
+            }
+
+            function getKeywordData() {
+                const text = $('#keywordInput').val().trim();
+                if (!text) {
+                    showStatus('keyword', 'Please enter text for keyword extraction!', true);
+                    return null;
+                }
+                return { data: { text: text } };
+            }
+
+            function getSentimentData() {
+                const text = $('#sentimentInput').val().trim();
+                if (!text) {
+                    showStatus('sentiment', 'Please enter text for sentiment analysis!', true);
+                    return null;
+                }
+                return { data: { text: text } };
+            }
+
+            function processToolRequest(url, type, getDataFn) {
+                if (!state.isLoggedIn && state.hasUsedTrial) {
+                    showAuthPrompt();
+                    return;
+                }
+                const result = getDataFn();
+                if (!result) return;
+                const { data, processData = true, contentType = 'application/json' } = result;
+                showLoading(type);
+                $.ajax({
+                    url: url,
+                    method: 'POST',
+                    data: processData ? JSON.stringify(data) : data,
+                    contentType: contentType,
+                    processData: processData,
+                    success: (response) => {
+                        hideLoading(type);
+                        if (response.error) {
+                            showStatus(type, response.error, true);
+                            return;
+                        }
+                        if (url === '/summarize') {
+                            $('#pdfSummary').text(response.summary || response.result);
+                        } else if (url === '/analyze') {
+                            $('#textAnalysis').text(JSON.stringify(response.analysis, null, 2));
+                        } else if (url === '/extract') {
+                            $('#urlContent').text(response.content || response.result);
+                        } else if (url === '/keywords') {
+                            $('#keywordOutput').text(response.keywords.join(', '));
+                        } else if (url === '/sentiment') {
+                            $('#sentimentOutput').text(JSON.stringify(response.sentiment, null, 2));
+                        }
+                        showStatus(type, 'Operation completed successfully!', false);
+                        if (!state.isLoggedIn) {
+                            state.hasUsedTrial = true;
+                            localStorage.setItem('hasUsedTrial', 'true');
+                            updateTrialUI();
+                        }
+                    },
+                    error: (xhr) => {
+                        hideLoading(type);
+                        const errorMsg = xhr.responseJSON?.error || 'An unexpected error occurred. Please try again.';
+                        showStatus(type, errorMsg, true);
+                    }
+                });
+            }
+
+            function processRequest(url, data, loadingType, successCallback, processData = true, contentType = 'application/json', completeCallback) {
+                if (loadingType) showLoading(loadingType);
+                $.ajax({
+                    url: url,
+                    method: url === '/profile' ? 'GET' : 'POST',
+                    data: processData ? JSON.stringify(data) : data,
+                    contentType: contentType,
+                    processData: processData,
+                    success: (response) => {
+                        if (loadingType) hideLoading(loadingType);
+                        if (response.error) {
+                            showStatus(loadingType || 'login', response.error, true);
+                            return;
+                        }
+                        if (successCallback) successCallback(response);
+                    },
+                    error: (xhr) => {
+                        if (loadingType) hideLoading(loadingType);
+                        const errorMsg = xhr.responseJSON?.error || 'An error occurred. Please try again.';
+                        showStatus(loadingType || 'login', errorMsg, true);
+                    },
+                    complete: () => {
+                        if (completeCallback) completeCallback();
+                    }
+                });
+            }
+        });
+    </script>
+</body>
 </html>
