@@ -2528,10 +2528,11 @@
 
             $('#registerBtn').click(() => {
                 const data = {
-                    username: $('#registerUsername').val().trim(),
-                    email: $('#registerEmail').val().trim(),
+                    username: $('#registerUsername').val(),
+                    email: $('#registerEmail').val(),
                     password: $('#registerPassword').val()
                 };
+                console.log("Register data being sent:", data);
                 if (!validateForm(data, ['username', 'email', 'password'])) return;
                 processRequest('/register', data, 'register', () => {
                     showSection('loginForm');
@@ -2542,9 +2543,10 @@
             $('#loginBtn').click(() => {
                 if (state.isLoginPending) return;
                 const data = {
-                    identifier: $('#loginIdentifier').val().trim(),
+                    identifier: $('#loginIdentifier').val(),
                     password: $('#loginPassword').val()
                 };
+                console.log("Login data being sent:", data);
                 if (!validateForm(data, ['identifier', 'password'])) return;
                 state.isLoginPending = true;
                 $('#loginBtn').addClass('disabled-btn').prop('disabled', true);
