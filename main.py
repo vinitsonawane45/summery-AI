@@ -1130,7 +1130,6 @@
 # if __name__ == '__main__':
 #     serve(app, host='0.0.0.0', port=5000)
 
-
 from flask import Flask, request, jsonify, session, render_template
 from flask_sqlalchemy import SQLAlchemy
 from transformers import T5ForConditionalGeneration, T5Tokenizer
@@ -1158,6 +1157,8 @@ import bleach
 import pymysql
 from threading import Lock
 from waitress import serve
+import pdf2image
+import pytesseract
 
 # Initialize NLTK resources
 nltk.download('punkt', quiet=True)
@@ -1308,13 +1309,24 @@ def extract_text_from_pdf(pdf_file):
         temp_file.seek(0)
         reader = PyPDF2.PdfReader(temp_file)
         text = ""
-        for page in reader.pages[:10]:  # Increased to 10 pages
-            page_text = page.extract_text() or ""
-            text += page_text + "\n"
-            if len(text) > 10000:  # Increased limit
+        for page in reader.pages[:10]:
+            page_text = page.extract_text()
+            if page_text:
+                text += page_text + "\n"
+            if len(text) > 10000:
                 break
+        
+        # If no text extracted, try OCR as fallback
         if not text.strip():
-            raise ValueError("No readable text found in PDF")
+            images = pdf2image.convert_from_bytes(temp_file.getvalue(), dpi=200)
+            for image in images[:10]:
+                ocr_text = pytesseract.image_to_string(image)
+                text += ocr_text + "\n"
+                if len(text) > 10000:
+                    break
+        
+        if not text.strip():
+            raise ValueError("No readable text found in PDF (tried OCR fallback)")
         return bleach.clean(text[:10000])
     except Exception as e:
         app.logger.error(f"PDF extraction error: {str(e)}")
@@ -1442,23 +1454,14 @@ def logout():
         ip_address = get_remote_address()
         if not check_rate_limit(f"logout:{ip_address}", 10, 60):
             return jsonify({'success': False, 'error': 'Rate limit exceeded: 10 per minute'}), 429
-
-        # Check if user is logged in
         if 'user_id' not in session:
             return jsonify({'success': False, 'error': 'Not authenticated'}), 401
-
-        # Log the user ID before logout
         user_id = session.get('user_id')
         app.logger.info(f"User ID {user_id} attempting to log out")
-
-        # Clear the session
         session.clear()
-
-        # Verify session is cleared
         if 'user_id' in session:
             app.logger.error("Session clearing failed: user_id still present after logout")
             return jsonify({'success': False, 'error': 'Logout failed due to session clearing issue'}), 500
-
         app.logger.info(f"User ID {user_id} logged out successfully")
         return jsonify({'success': True})
     except Exception as e:
