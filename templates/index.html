@@ -2164,7 +2164,6 @@
             border: 1px solid var(--rate-limit);
         }
 
-        /* Improved Profile Section Styling */
         .profile-section {
             padding: 2rem;
             background: var(--card-bg);
@@ -2345,8 +2344,8 @@
             <h2 class="section-title">Text Summarizer</h2>
             <div class="trial-notice" id="trialMessage">Try our tools free once!</div>
             <div class="form-group">
-                <label for="summaryInput">Text or URL to Summarize</label>
-                <textarea id="summaryInput" placeholder="Enter text or paste a URL"></textarea>
+                <label for="summaryInput">Text to Summarize</label>
+                <textarea id="summaryInput" placeholder="Enter text to summarize"></textarea>
             </div>
             <button id="summarizeTextBtn">Summarize</button>
             <div id="summaryStatus" class="status hidden"></div>
@@ -2492,7 +2491,7 @@
                 if (state.isLoggedIn) {
                     updateProfileUI();
                 }
-                $('.spinner').css('display', 'none'); // Hide all spinners on load
+                $('.spinner').css('display', 'none');
             }
 
             $('.hamburger').click(function() {
@@ -2682,13 +2681,13 @@
             }
 
             function getSummaryData() {
-                const input = $('#summaryInput').val().trim();
-                if (!input) {
-                    showStatus('summary', 'Please enter text or a URL to summarize!', true);
+                const text = $('#summaryInput').val().trim();
+                if (!text) {
+                    showStatus('summary', 'Please enter text to summarize!', true);
                     return null;
                 }
                 return { 
-                    data: JSON.stringify({ text: input }), // Changed 'input' to 'text' to match backend
+                    data: JSON.stringify({ text: text }), 
                     processData: false, 
                     contentType: 'application/json' 
                 };
@@ -2765,12 +2764,10 @@
                     processData: result.processData,
                     success: (response) => {
                         hideLoading(type);
-                        
                         if (response.error) {
                             showStatus(type, response.error, true);
                             return;
                         }
-                        
                         let output = '';
                         if (url === '/summarize') {
                             output = response.summary || 'No summary generated.';
@@ -2788,9 +2785,7 @@
                             output = formatSentiment(response.sentiment);
                             $('#sentimentOutput').html(output);
                         }
-                        
                         showStatus(type, 'Operation completed successfully!', false);
-                        
                         if (!state.isLoggedIn) {
                             state.hasUsedTrial = true;
                             localStorage.setItem('hasUsedTrial', 'true');
@@ -2808,6 +2803,8 @@
                             errorMsg = 'Rate limit exceeded. Please try again later.';
                             showStatus(type, errorMsg, true, true);
                             return;
+                        } else if (xhr.status === 502) {
+                            errorMsg = 'Server error (502). Please try again later.';
                         }
                         showStatus(type, errorMsg, true);
                     }
