@@ -544,7 +544,6 @@
 # if __name__ == '__main__':
 #     serve(app, host='0.0.0.0', port=5000)
 
-
 from flask import Flask, request, jsonify, session, render_template
 from flask_sqlalchemy import SQLAlchemy
 from transformers import T5ForConditionalGeneration, T5Tokenizer
@@ -968,34 +967,24 @@ async def summarize():
             if user and user.preferences:
                 max_length = int(user.preferences)
                 
-        text = ""
-        # Check for PDF file first
-        if 'pdf_file' in request.files and request.files['pdf_file'].filename != '':
+        text = None  # Initialize as None instead of empty string
+        form_text = request.form.get('text', '').strip()
+
+        if 'pdf_file' in request.files and request.files['pdf_file'] and request.files['pdf_file'].filename:
             try:
                 text = extract_text_from_pdf(request.files['pdf_file'])
-                if not text or len(text.strip()) < 20:
-                    return jsonify({'error': 'PDF contains too little text (minimum 20 characters required)'}), 400
             except ValueError as e:
                 return jsonify({'error': str(e)}), 400
-        else:
-            # Check for text input (either direct text or URL)
-            text_input = request.form.get('text', '').strip()
-            if not text_input:
-                return jsonify({'error': 'No content provided. Please upload a PDF file or enter text/URL'}), 400
-                
-            if urlparse(text_input).scheme in ["http", "https"]:
-                try:
-                    text = await fetch_url_content(text_input)
-                except Exception as e:
-                    return jsonify({'error': str(e)}), 400
+        elif form_text:  # Check if form text is provided and not empty
+            if urlparse(form_text).scheme in ["http", "https"]:
+                text = await fetch_url_content(form_text)
             else:
-                if len(text_input) < 20:
-                    return jsonify({'error': 'Text too short for summarization (minimum 20 characters required)'}), 400
-                text = text_input
-                    
-        # Final validation
+                text = form_text
+        else:
+            return jsonify({'error': 'No input provided. Please upload a PDF or enter text/URL.'}), 400
+
         if not text or len(text.strip()) < 20:
-            return jsonify({'error': 'No valid content to summarize (minimum 20 characters required). Please provide either: 1) A PDF file, 2) Direct text (20+ chars), or 3) A valid URL'}), 400
+            return jsonify({'error': 'Input too short. Please provide content with at least 20 characters.'}), 400
             
         summary = summarize_text(text, max_length)
         
