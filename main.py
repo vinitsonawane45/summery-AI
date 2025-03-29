@@ -1218,7 +1218,7 @@ def register():
         db.session.commit()
         session['user_id'] = new_user.id
         session.permanent = True
-        app.logger.info(f"User {username} registered")
+        app.logger.info(f"User {username} registered with user_id {new_user.id}")
         return jsonify({'message': 'Registration successful', 'username': new_user.username, 'preferences': new_user.preferences}), 201
     except Exception as e:
         db.session.rollback()
@@ -1243,7 +1243,7 @@ def login():
             return jsonify({'error': 'Invalid credentials'}), 401
         session['user_id'] = user.id
         session.permanent = True
-        app.logger.info(f"User {user.username} logged in")
+        app.logger.info(f"User {user.username} logged in with user_id {user.id}, session: {session.get('user_id')}")
         return jsonify({'message': 'Login successful', 'username': user.username, 'preferences': user.preferences})
     except Exception as e:
         app.logger.error(f"Login error: {str(e)}")
@@ -1269,11 +1269,15 @@ def logout():
 @app.route('/profile', methods=['GET'])
 def profile():
     try:
+        app.logger.debug(f"Profile request, session user_id: {session.get('user_id')}")
         if 'user_id' not in session:
+            app.logger.warning("Profile access denied: No user_id in session")
             return jsonify({'error': 'Not authenticated'}), 401
         user = db.session.get(User, session['user_id'])
         if not user:
+            app.logger.error(f"User not found for user_id: {session['user_id']}")
             return jsonify({'error': 'User not found'}), 404
+        app.logger.info(f"Profile accessed for user: {user.username}")
         return jsonify({
             'username': user.username,
             'preferences': user.preferences,
