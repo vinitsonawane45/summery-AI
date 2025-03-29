@@ -882,7 +882,7 @@
 </html>
  -->
 
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -1803,10 +1803,9 @@
         });
     </script>
 </body>
-</html>
+</html> -->
 
-
-<!-- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -2213,10 +2212,6 @@
                 <label for="pdfUpload">Upload PDF (Max 100MB)</label>
                 <input type="file" id="pdfUpload" accept=".pdf">
             </div>
-            <div class="form-group">
-                <label for="textInput">Or enter text/URL to summarize</label>
-                <textarea id="textInput" placeholder="Enter text or URL to summarize (minimum 20 characters)"></textarea>
-            </div>
             <button id="summarizePdfBtn">Summarize</button>
             <div id="pdfStatus" class="status hidden"></div>
             <div id="pdfSummary" class="output-box"></div>
@@ -2226,8 +2221,8 @@
         <section id="textAnalyzerSection" class="tool-container">
             <h2 class="section-title">Text Analyzer</h2>
             <div class="form-group">
-                <label for="textAnalyzerInput">Text to Analyze</label>
-                <textarea id="textAnalyzerInput" placeholder="Enter text to analyze"></textarea>
+                <label for="textInput">Text to Analyze</label>
+                <textarea id="textInput" placeholder="Enter text to analyze"></textarea>
             </div>
             <button id="analyzeTextBtn">Analyze</button>
             <div id="textStatus" class="status hidden"></div>
@@ -2545,47 +2540,33 @@
 
             function getPdfData() {
                 const pdfFile = $('#pdfUpload')[0].files[0];
-                const textInput = $('#textInput').val().trim();
-                
-                // If both are empty
-                if (!pdfFile && !textInput) {
-                    showStatus('pdf', 'Please upload a PDF file or enter text/URL!', true);
+                if (!pdfFile) {
+                    showStatus('pdf', 'Please upload a PDF file to summarize!', true);
                     return null;
                 }
                 
-                // If PDF is uploaded
-                if (pdfFile) {
-                    // Client-side validation
-                    const maxSize = 100 * 1024 * 1024; // 100MB
-                    if (pdfFile.size > maxSize) {
-                        showStatus('pdf', 'File size exceeds 100MB limit!', true);
-                        return null;
-                    }
-                    
-                    if (!pdfFile.name.toLowerCase().endsWith('.pdf')) {
-                        showStatus('pdf', 'Only PDF files are accepted!', true);
-                        return null;
-                    }
-                    
-                    const formData = new FormData();
-                    formData.append('pdf_file', pdfFile);
-                    return { 
-                        data: formData, 
-                        processData: false, 
-                        contentType: false 
-                    };
+                const maxSize = 100 * 1024 * 1024;
+                if (pdfFile.size > maxSize) {
+                    showStatus('pdf', 'File size exceeds 100MB limit!', true);
+                    return null;
                 }
                 
-                // If text input is provided
-                if (textInput) {
-                    return { data: { text: textInput } };
+                if (!pdfFile.name.toLowerCase().endsWith('.pdf')) {
+                    showStatus('pdf', 'Only PDF files are accepted!', true);
+                    return null;
                 }
                 
-                return null;
+                const formData = new FormData();
+                formData.append('pdf_file', pdfFile);
+                return { 
+                    data: formData, 
+                    processData: false, 
+                    contentType: false 
+                };
             }
 
             function getTextData() {
-                const text = $('#textAnalyzerInput').val().trim();
+                const text = $('#textInput').val().trim();
                 if (!text) {
                     showStatus('text', 'Please enter text to analyze!', true);
                     return null;
@@ -2645,7 +2626,6 @@
                             return;
                         }
                         
-                        // Handle different response types with formatted output
                         let output = '';
                         if (url === '/summarize') {
                             output = response.summary || 'No summary generated.';
@@ -2744,4 +2724,5 @@
         });
     </script>
 </body>
-</html> -->
+</html>
+
