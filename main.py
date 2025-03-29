@@ -1475,6 +1475,7 @@ import secrets
 from datetime import timedelta, datetime, UTC
 import bleach
 import pymysql
+from sqlalchemy.sql import func
 from waitress import serve
 
 # Initialize NLTK resources
@@ -1692,22 +1693,22 @@ def register():
         if not data:
             return jsonify({'error': 'No data provided'}), 400
         username, email, password = data.get('username'), data.get('email'), data.get('password')
-        app.logger.debug(f"Register attempt: username={username}, email={email}")
+        app.logger.debug(f"Register attempt: username={username}, email={email}, password={password}")
         if not username or len(username) < 3:
             return jsonify({'error': 'Username must be at least 3 characters'}), 400
         if not email or '@' not in email:
             return jsonify({'error': 'Invalid email address'}), 400
         if not password or len(password) < 5:
             return jsonify({'error': 'Password must be at least 5 characters'}), 400
-        if User.query.filter_by(username=username).first():
+        if User.query.filter(func.lower(User.username) == username.lower()).first():
             return jsonify({'error': 'Username already exists'}), 400
-        if User.query.filter_by(email=email).first():
+        if User.query.filter(func.lower(User.email) == email.lower()).first():
             return jsonify({'error': 'Email already registered'}), 400
         new_user = User(username=username, email=email, password=password)
         db.session.add(new_user)
         db.session.commit()
         # Verify user was saved
-        saved_user = User.query.filter_by(username=username).first()
+        saved_user = User.query.filter(func.lower(User.username) == username.lower()).first()
         if not saved_user:
             app.logger.error(f"Failed to save user {username} to database")
             return jsonify({'error': 'Failed to register user due to database error'}), 500
@@ -1731,15 +1732,20 @@ def login():
         if not data:
             return jsonify({'error': 'No data provided'}), 400
         identifier, password = data.get('identifier'), data.get('password')
-        app.logger.debug(f"Login attempt: identifier={identifier}")
+        app.logger.debug(f"Login attempt: identifier={identifier}, password={password}")
         if not identifier or not password:
             return jsonify({'error': 'Username/email and password required'}), 400
-        user = User.query.filter((User.username == identifier) | (User.email == identifier)).first()
+        # Case-insensitive search for username or email
+        user = User.query.filter(
+            (func.lower(User.username) == identifier.lower()) | 
+            (func.lower(User.email) == identifier.lower())
+        ).first()
         if not user:
             app.logger.warning(f"Login failed: User with identifier {identifier} not found")
             return jsonify({'error': 'User not found. Please register or check your username/email.'}), 401
+        app.logger.debug(f"Found user: username={user.username}, email={user.email}, stored password={user.password}")
         if user.password != password:
-            app.logger.warning(f"Login failed: Incorrect password for user {identifier}")
+            app.logger.warning(f"Login failed: Incorrect password for user {identifier}. Entered: {password}, Stored: {user.password}")
             return jsonify({'error': 'Incorrect password. Please try again.'}), 401
         session['user_id'] = user.id
         session.permanent = True
