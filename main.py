@@ -42,11 +42,12 @@
 # # Configuration
 # app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URI', 'sqlite:///summarizer.db')
 # app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-# app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(32))
+# app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(32))
 # app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 # app.config['SESSION_COOKIE_SECURE'] = True
 # app.config['SESSION_COOKIE_HTTPONLY'] = True
 # app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+# app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB limit
 
 # # Initialize SQLAlchemy
 # db = SQLAlchemy(app)
@@ -172,26 +173,43 @@
 #     try:
 #         if not pdf_file or not pdf_file.filename.lower().endswith('.pdf'):
 #             raise ValueError("Invalid file type. Only PDFs are accepted.")
-#         temp_file = BytesIO()
-#         pdf_file.save(temp_file)
-#         temp_file.seek(0)
+        
+#         # Check file size
+#         pdf_file.seek(0, os.SEEK_END)
+#         file_size = pdf_file.tell()
+#         max_size = 100 * 1024 * 1024  # 100MB in bytes
+#         if file_size > max_size:
+#             raise ValueError(f"File size ({file_size / (1024 * 1024):.2f}MB) exceeds 100MB limit")
+#         pdf_file.seek(0)  # Reset file pointer
+
+#         temp_file = BytesIO(pdf_file.read())
 #         reader = PyPDF2.PdfReader(temp_file)
 #         text = ""
-#         for page in reader.pages[:10]:
-#             page_text = page.extract_text()
-#             if page_text:
-#                 text += page_text + "\n"
+#         for page_num, page in enumerate(reader.pages[:50], 1):  # Limit to 50 pages
+#             try:
+#                 page_text = page.extract_text()
+#                 if page_text:
+#                     text += page_text + "\n"
+#             except Exception as e:
+#                 app.logger.warning(f"Failed to extract text from page {page_num}: {str(e)}")
 #             if len(text) > 10000:
 #                 break
         
-#         # If no text extracted, try OCR as fallback
+#         # OCR fallback if no text is extracted
 #         if not text.strip():
-#             images = pdf2image.convert_from_bytes(temp_file.getvalue(), dpi=200)
-#             for image in images[:10]:
-#                 ocr_text = pytesseract.image_to_string(image)
-#                 text += ocr_text + "\n"
-#                 if len(text) > 10000:
-#                     break
+#             app.logger.info("No text extracted with PyPDF2, attempting OCR fallback")
+#             try:
+#                 images = pdf2image.convert_from_bytes(temp_file.getvalue(), dpi=200, thread_count=4)
+#                 for i, image in enumerate(images[:50], 1):  # Limit to 50 pages
+#                     try:
+#                         ocr_text = pytesseract.image_to_string(image, timeout=30)
+#                         text += ocr_text + "\n"
+#                     except Exception as e:
+#                         app.logger.warning(f"OCR failed for page {i}: {str(e)}")
+#                     if len(text) > 10000:
+#                         break
+#             except Exception as e:
+#                 app.logger.error(f"OCR processing failed: {str(e)}")
         
 #         if not text.strip():
 #             raise ValueError("No readable text found in PDF (tried OCR fallback)")
@@ -284,7 +302,7 @@
 #         db.session.commit()
 #         session['user_id'] = new_user.id
 #         session.permanent = True
-#         app.logger.info(f"User {username} registered and logged in")
+#         app.logger.info(f"User {username} registered")
 #         return jsonify({'message': 'Registration successful', 'username': new_user.username, 'preferences': new_user.preferences}), 201
 #     except Exception as e:
 #         db.session.rollback()
@@ -321,20 +339,16 @@
 #     try:
 #         ip_address = get_remote_address()
 #         if not check_rate_limit(f"logout:{ip_address}", 10, 60):
-#             return jsonify({'success': False, 'error': 'Rate limit exceeded: 10 per minute'}), 429
+#             return jsonify({'success': False, 'error': 'Rate limit exceeded'}), 429
 #         if 'user_id' not in session:
 #             return jsonify({'success': False, 'error': 'Not authenticated'}), 401
 #         user_id = session.get('user_id')
-#         app.logger.info(f"User ID {user_id} attempting to log out")
 #         session.clear()
-#         if 'user_id' in session:
-#             app.logger.error("Session clearing failed: user_id still present after logout")
-#             return jsonify({'success': False, 'error': 'Logout failed due to session clearing issue'}), 500
-#         app.logger.info(f"User ID {user_id} logged out successfully")
+#         app.logger.info(f"User ID {user_id} logged out")
 #         return jsonify({'success': True})
 #     except Exception as e:
 #         app.logger.error(f"Logout error: {str(e)}")
-#         return jsonify({'success': False, 'error': 'Logout failed: ' + str(e)}), 500
+#         return jsonify({'success': False, 'error': 'Logout failed'}), 500
 
 # @app.route('/profile', methods=['GET'])
 # def profile():
@@ -358,14 +372,14 @@
 #         if not data or 'summary_length' not in data:
 #             return jsonify({'error': 'No preference data provided'}), 400
 #         summary_length = data['summary_length']
-#         if summary_length not in ['100', '150', '200']:
+#         if summary_length not in [100, 150, 200]:
 #             return jsonify({'error': 'Invalid preference value'}), 400
 #         user = db.session.get(User, session['user_id'])
 #         if not user:
 #             return jsonify({'error': 'User not found'}), 404
-#         user.preferences = summary_length
+#         user.preferences = str(summary_length)
 #         db.session.commit()
-#         app.logger.info(f"User {user.username} updated preferences to {summary_length}")
+#         app.logger.info(f"User {user.username} updated preferences")
 #         return jsonify({'message': 'Preferences updated'})
 #     except Exception as e:
 #         db.session.rollback()
@@ -381,14 +395,17 @@
 #             return jsonify({'error': 'Rate limit exceeded: 10 per minute'}), 429
 #         if 'user_id' not in session and 'trial_used' in session:
 #             return jsonify({'error': 'Please register to continue'}), 401
+        
 #         max_length = 150
 #         if 'user_id' in session:
 #             user = db.session.get(User, session['user_id'])
 #             if user and user.preferences:
 #                 max_length = int(user.preferences)
+        
 #         text = ""
 #         if 'pdf_file' in request.files and request.files['pdf_file']:
-#             text = extract_text_from_pdf(request.files['pdf_file'])
+#             pdf_file = request.files['pdf_file']
+#             text = extract_text_from_pdf(pdf_file)
 #         else:
 #             text_input = request.form.get('text', '').strip()
 #             if text_input:
@@ -396,11 +413,15 @@
 #                     text = await fetch_url_content(text_input)
 #                 else:
 #                     text = text_input
+        
 #         if not text or len(text.strip()) < 20:
 #             return jsonify({'error': 'No valid content to summarize (minimum 20 characters required)'}), 400
+        
 #         summary = summarize_text(text, max_length)
+        
 #         if 'user_id' not in session:
 #             session['trial_used'] = True
+        
 #         app.logger.info(f"Summary generated for IP: {ip_address}")
 #         return jsonify({'summary': summary})
 #     except Exception as e:
@@ -498,10 +519,6 @@
 #     except Exception as e:
 #         app.logger.error(f"Sentiment error: {str(e)}")
 #         return jsonify({'error': str(e)}), 500
-
-# @app.route('/dashboard')
-# def dashboard():
-#     return "Application is running"
 
 # if __name__ == '__main__':
 #     serve(app, host='0.0.0.0', port=5000)
@@ -705,7 +722,7 @@ def extract_text_from_pdf(pdf_file):
         
         # OCR fallback if no text is extracted
         if not text.strip():
-            app.logger.info("No text extracted with PyPDF2, attempting OCR fallback")
+            app.logger.info("No text extracted with PyPDF2, attempting OCR")
             try:
                 images = pdf2image.convert_from_bytes(temp_file.getvalue(), dpi=200, thread_count=4)
                 for i, image in enumerate(images[:50], 1):  # Limit to 50 pages
@@ -720,7 +737,7 @@ def extract_text_from_pdf(pdf_file):
                 app.logger.error(f"OCR processing failed: {str(e)}")
         
         if not text.strip():
-            raise ValueError("No readable text found in PDF (tried OCR fallback)")
+            raise ValueError("No readable text found in PDF after OCR attempt")
         return bleach.clean(text[:10000])
     except Exception as e:
         app.logger.error(f"PDF extraction error: {str(e)}")
@@ -729,7 +746,7 @@ def extract_text_from_pdf(pdf_file):
 def analyze_text(text):
     try:
         if not text or len(text.strip()) < 10:
-            raise ValueError("Text too short for analysis")
+            raise ValueError("Text too short for analysis (minimum 10 characters required)")
         clean_text = re.sub(r'[^\w\s]', '', text)
         words = word_tokenize(clean_text)
         word_count = len(words)
@@ -753,12 +770,19 @@ def analyze_text(text):
 def extract_keywords(text, top_n=10):
     try:
         if not text or len(text.strip()) < 10:
-            raise ValueError("Text too short for keyword extraction")
+            raise ValueError("Text too short for keyword extraction (minimum 10 characters required)")
         clean_text = re.sub(r'[^\w\s]', '', text.lower())
         words = word_tokenize(clean_text)
-        words = [word for word in words if word.isalpha() and word not in stop_words and len(word) > 2]
-        freq_dist = nltk.FreqDist(words)
-        return [word for word, _ in freq_dist.most_common(top_n)]
+        if not words:
+            raise ValueError("No valid words found in text after tokenization")
+        filtered_words = [word for word in words if word.isalpha() and word not in stop_words and len(word) > 2]
+        if not filtered_words:
+            raise ValueError("No keywords found after filtering stop words and short words")
+        freq_dist = nltk.FreqDist(filtered_words)
+        keywords = [word for word, _ in freq_dist.most_common(top_n)]
+        if not keywords:
+            raise ValueError("No keywords extracted from the text")
+        return keywords
     except Exception as e:
         app.logger.error(f"Keyword extraction error: {str(e)}")
         raise ValueError(f"Keyword extraction failed: {str(e)}")
@@ -766,7 +790,7 @@ def extract_keywords(text, top_n=10):
 def analyze_sentiment(text):
     try:
         if not text or len(text.strip()) < 10:
-            raise ValueError("Text too short for sentiment analysis")
+            raise ValueError("Text too short for sentiment analysis (minimum 10 characters required)")
         scores = sid.polarity_scores(text)
         sentiment = "Positive" if scores['compound'] > 0.05 else "Negative" if scores['compound'] < -0.05 else "Neutral"
         return {
@@ -790,7 +814,7 @@ def register():
     try:
         ip_address = get_remote_address()
         if not check_rate_limit(f"register:{ip_address}", 5, 60):
-            return jsonify({'error': 'Rate limit exceeded: 5 per minute'}), 429
+            return jsonify({'error': 'Rate limit exceeded: 5 attempts per minute'}), 429
         data = request.get_json()
         if not data:
             return jsonify({'error': 'No data provided'}), 400
@@ -815,7 +839,7 @@ def register():
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"Registration error: {str(e)}")
-        return jsonify({'error': 'Registration failed'}), 500
+        return jsonify({'error': 'Registration failed: Internal server error'}), 500
 
 @app.route('/login', methods=['POST'])
 @limiter.limit("10 per minute")
@@ -823,7 +847,7 @@ def login():
     try:
         ip_address = get_remote_address()
         if not check_rate_limit(f"login:{ip_address}", 10, 60):
-            return jsonify({'error': 'Rate limit exceeded: 10 per minute'}), 429
+            return jsonify({'error': 'Rate limit exceeded: 10 attempts per minute'}), 429
         data = request.get_json()
         if not data:
             return jsonify({'error': 'No data provided'}), 400
@@ -839,7 +863,7 @@ def login():
         return jsonify({'message': 'Login successful', 'username': user.username, 'preferences': user.preferences})
     except Exception as e:
         app.logger.error(f"Login error: {str(e)}")
-        return jsonify({'error': 'Login failed'}), 500
+        return jsonify({'error': 'Login failed: Internal server error'}), 500
 
 @app.route('/logout', methods=['POST'])
 @limiter.limit("10 per minute")
@@ -847,7 +871,7 @@ def logout():
     try:
         ip_address = get_remote_address()
         if not check_rate_limit(f"logout:{ip_address}", 10, 60):
-            return jsonify({'success': False, 'error': 'Rate limit exceeded'}), 429
+            return jsonify({'success': False, 'error': 'Rate limit exceeded: 10 attempts per minute'}), 429
         if 'user_id' not in session:
             return jsonify({'success': False, 'error': 'Not authenticated'}), 401
         user_id = session.get('user_id')
@@ -856,7 +880,7 @@ def logout():
         return jsonify({'success': True})
     except Exception as e:
         app.logger.error(f"Logout error: {str(e)}")
-        return jsonify({'success': False, 'error': 'Logout failed'}), 500
+        return jsonify({'success': False, 'error': 'Logout failed: Internal server error'}), 500
 
 @app.route('/profile', methods=['GET'])
 def profile():
@@ -869,7 +893,7 @@ def profile():
         return jsonify({'username': user.username, 'preferences': user.preferences})
     except Exception as e:
         app.logger.error(f"Profile error: {str(e)}")
-        return jsonify({'error': 'Failed to fetch profile'}), 500
+        return jsonify({'error': 'Failed to fetch profile: Internal server error'}), 500
 
 @app.route('/preferences', methods=['POST'])
 def update_preferences():
@@ -881,7 +905,7 @@ def update_preferences():
             return jsonify({'error': 'No preference data provided'}), 400
         summary_length = data['summary_length']
         if summary_length not in [100, 150, 200]:
-            return jsonify({'error': 'Invalid preference value'}), 400
+            return jsonify({'error': 'Invalid preference value (must be 100, 150, or 200)'}), 400
         user = db.session.get(User, session['user_id'])
         if not user:
             return jsonify({'error': 'User not found'}), 404
@@ -892,7 +916,7 @@ def update_preferences():
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"Preferences error: {str(e)}")
-        return jsonify({'error': 'Failed to update preferences'}), 500
+        return jsonify({'error': 'Failed to update preferences: Internal server error'}), 500
 
 @app.route('/summarize', methods=['POST'])
 @limiter.limit("10 per minute")
@@ -900,9 +924,9 @@ async def summarize():
     try:
         ip_address = get_remote_address()
         if not check_rate_limit(f"summarize:{ip_address}", 10, 60):
-            return jsonify({'error': 'Rate limit exceeded: 10 per minute'}), 429
+            return jsonify({'error': 'Rate limit exceeded: 10 requests per minute'}), 429
         if 'user_id' not in session and 'trial_used' in session:
-            return jsonify({'error': 'Please register to continue'}), 401
+            return jsonify({'error': 'Trial used. Please register to continue.'}), 401
         
         max_length = 150
         if 'user_id' in session:
@@ -934,7 +958,7 @@ async def summarize():
         return jsonify({'summary': summary})
     except Exception as e:
         app.logger.error(f"Summarize error: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': f"Failed to summarize: {str(e)}"}), 500
 
 @app.route('/analyze', methods=['POST'])
 @limiter.limit("10 per minute")
@@ -942,22 +966,22 @@ def analyze():
     try:
         ip_address = get_remote_address()
         if not check_rate_limit(f"analyze:{ip_address}", 10, 60):
-            return jsonify({'error': 'Rate limit exceeded: 10 per minute'}), 429
+            return jsonify({'error': 'Rate limit exceeded: 10 requests per minute'}), 429
         if 'user_id' not in session and 'trial_used' in session:
-            return jsonify({'error': 'Please register to continue'}), 401
+            return jsonify({'error': 'Trial used. Please register to continue.'}), 401
         data = request.get_json()
         if not data or 'text' not in data:
             return jsonify({'error': 'No text provided'}), 400
         text = data['text'].strip()
         if len(text) < 10:
-            return jsonify({'error': 'Text too short for analysis'}), 400
+            return jsonify({'error': 'Text too short for analysis (minimum 10 characters required)'}), 400
         analysis = analyze_text(text)
         if 'user_id' not in session:
             session['trial_used'] = True
         return jsonify({'analysis': analysis})
     except Exception as e:
         app.logger.error(f"Analyze error: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': f"Failed to analyze text: {str(e)}"}), 500
 
 @app.route('/extract', methods=['POST'])
 @limiter.limit("10 per minute")
@@ -965,9 +989,9 @@ async def extract():
     try:
         ip_address = get_remote_address()
         if not check_rate_limit(f"extract:{ip_address}", 10, 60):
-            return jsonify({'error': 'Rate limit exceeded: 10 per minute'}), 429
+            return jsonify({'error': 'Rate limit exceeded: 10 requests per minute'}), 429
         if 'user_id' not in session and 'trial_used' in session:
-            return jsonify({'error': 'Please register to continue'}), 401
+            return jsonify({'error': 'Trial used. Please register to continue.'}), 401
         data = request.get_json()
         if not data or 'url' not in data:
             return jsonify({'error': 'No URL provided'}), 400
@@ -980,7 +1004,7 @@ async def extract():
         return jsonify({'content': content})
     except Exception as e:
         app.logger.error(f"Extract error: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': f"Failed to extract URL content: {str(e)}"}), 500
 
 @app.route('/keywords', methods=['POST'])
 @limiter.limit("10 per minute")
@@ -988,22 +1012,22 @@ def keywords():
     try:
         ip_address = get_remote_address()
         if not check_rate_limit(f"keywords:{ip_address}", 10, 60):
-            return jsonify({'error': 'Rate limit exceeded: 10 per minute'}), 429
+            return jsonify({'error': 'Rate limit exceeded: 10 requests per minute'}), 429
         if 'user_id' not in session and 'trial_used' in session:
-            return jsonify({'error': 'Please register to continue'}), 401
+            return jsonify({'error': 'Trial used. Please register to continue.'}), 401
         data = request.get_json()
         if not data or 'text' not in data:
             return jsonify({'error': 'No text provided'}), 400
         text = data['text'].strip()
         if len(text) < 10:
-            return jsonify({'error': 'Text too short for keyword extraction'}), 400
+            return jsonify({'error': 'Text too short for keyword extraction (minimum 10 characters required)'}), 400
         keywords = extract_keywords(text)
         if 'user_id' not in session:
             session['trial_used'] = True
         return jsonify({'keywords': keywords})
     except Exception as e:
         app.logger.error(f"Keywords error: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': f"Failed to extract keywords: {str(e)}"}), 500
 
 @app.route('/sentiment', methods=['POST'])
 @limiter.limit("10 per minute")
@@ -1011,22 +1035,22 @@ def sentiment():
     try:
         ip_address = get_remote_address()
         if not check_rate_limit(f"sentiment:{ip_address}", 10, 60):
-            return jsonify({'error': 'Rate limit exceeded: 10 per minute'}), 429
+            return jsonify({'error': 'Rate limit exceeded: 10 requests per minute'}), 429
         if 'user_id' not in session and 'trial_used' in session:
-            return jsonify({'error': 'Please register to continue'}), 401
+            return jsonify({'error': 'Trial used. Please register to continue.'}), 401
         data = request.get_json()
         if not data or 'text' not in data:
             return jsonify({'error': 'No text provided'}), 400
         text = data['text'].strip()
         if len(text) < 10:
-            return jsonify({'error': 'Text too short for sentiment analysis'}), 400
+            return jsonify({'error': 'Text too short for sentiment analysis (minimum 10 characters required)'}), 400
         sentiment = analyze_sentiment(text)
         if 'user_id' not in session:
             session['trial_used'] = True
         return jsonify({'sentiment': sentiment})
     except Exception as e:
         app.logger.error(f"Sentiment error: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': f"Failed to analyze sentiment: {str(e)}"}), 500
 
 if __name__ == '__main__':
     serve(app, host='0.0.0.0', port=5000)
