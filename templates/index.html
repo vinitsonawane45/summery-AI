@@ -4491,6 +4491,7 @@
                 updateNavForLogin();
                 updateActiveNavLink();
                 if (state.isLoggedIn) {
+                    validateSession();
                     updateProfileUI();
                 }
                 $('.spinner').css('display', 'none');
@@ -4505,8 +4506,10 @@
 
             $('#profileLink').click(() => {
                 if (state.isLoggedIn) {
-                    showSection('profileSection');
-                    loadProfile();
+                    validateSession(() => {
+                        showSection('profileSection');
+                        loadProfile();
+                    });
                 } else {
                     showAuthPrompt();
                 }
@@ -4570,12 +4573,14 @@
             });
 
             $('#savePreferences').click(() => {
-                const data = { summary_length: $('#summaryLength').val() };
-                processRequest('/preferences', data, 'profile', () => {
-                    state.preferences = data.summary_length;
-                    localStorage.setItem('preferences', data.summary_length);
-                    updateProfileUI();
-                    showStatus('profile', 'Preferences saved successfully!', false);
+                validateSession(() => {
+                    const data = { summary_length: $('#summaryLength').val() };
+                    processRequest('/preferences', data, 'profile', () => {
+                        state.preferences = data.summary_length;
+                        localStorage.setItem('preferences', data.summary_length);
+                        updateProfileUI();
+                        showStatus('profile', 'Preferences saved successfully!', false);
+                    });
                 });
             });
 
@@ -4634,10 +4639,48 @@
                 $('#summaryLength').val(state.preferences);
             }
 
+            function validateSession(callback) {
+                if (!state.isLoggedIn) {
+                    showAuthPrompt();
+                    return;
+                }
+                $.ajax({
+                    url: '/profile',
+                    method: 'GET',
+                    success: (response) => {
+                        if (response.error) {
+                            handleSessionInvalid();
+                        } else if (callback) {
+                            callback();
+                        }
+                    },
+                    error: () => {
+                        handleSessionInvalid();
+                    }
+                });
+            }
+
+            function handleSessionInvalid() {
+                state.isLoggedIn = false;
+                state.username = '';
+                state.hasUsedTrial = false;
+                state.preferences = '150';
+                state.joinDate = '';
+                localStorage.clear();
+                updateTrialUI();
+                updateNavForLogin();
+                showSection('loginForm');
+                showStatus('login', 'Session expired. Please login again.', true);
+            }
+
             function loadProfile() {
                 if (!state.isLoggedIn) return;
                 showLoading('profile');
                 processRequest('/profile', {}, 'profile', (response) => {
+                    if (response.error && response.error === 'Not authenticated') {
+                        handleSessionInvalid();
+                        return;
+                    }
                     state.username = response.username || state.username;
                     state.joinDate = response.joinDate || state.joinDate;
                     state.preferences = response.preferences || state.preferences;
