@@ -731,15 +731,40 @@ def analyze_sentiment(text):
         app.logger.error(f"Sentiment analysis error: {str(e)}")
         raise ValueError(f"Sentiment analysis failed: {str(e)}")
 
-# Google Search Console Verification
+# # Google Search Console Verification
+# @app.route('/google3a8738f31820d.html')
+# def google_verification():
+#     """Serve Google Search Console verification file"""
+#     try:
+#         return send_from_directory(os.path.join(app.root_path, 'static'), 'google3a8738f31820d.html')
+#     except Exception as e:
+#         app.logger.error(f"Failed to serve verification file: {str(e)}")
+#         return "Google verification", 404
 @app.route('/google3a8738f31820d.html')
 def google_verification():
-    """Serve Google Search Console verification file"""
+    """Guaranteed Google Search Console verification"""
+    # Try serving from static files first
     try:
-        return send_from_directory(os.path.join(app.root_path, 'static'), 'google3a8738f31820d.html')
+        response = send_from_directory(
+            os.path.join(app.root_path, 'static'),
+            'google3a8738f31820d.html',
+            mimetype='text/plain'
+        )
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        return response
     except Exception as e:
-        app.logger.error(f"Failed to serve verification file: {str(e)}")
-        return "Google verification", 404
+        app.logger.error(f"Verification file error: {str(e)}")
+    
+    # Fallback to direct response
+    verification_content = "google-site-verification: google3a8738f31820d.html"
+    return Response(
+        verification_content,
+        mimetype='text/plain',
+        headers={
+            'Cache-Control': 'no-cache',
+            'Content-Length': str(len(verification_content))
+        }
+    )
 
 @app.route('/')
 def home():
