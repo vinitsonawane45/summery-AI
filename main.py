@@ -742,30 +742,35 @@ def analyze_sentiment(text):
 #         return "Google verification", 404
 @app.route('/google3a8738f31820d.html')
 def google_verification():
-    """Guaranteed Google Search Console verification"""
-    # Try serving from static files first
+    """Bulletproof Google verification endpoint"""
     try:
+        # First try serving from static files
         response = send_from_directory(
             os.path.join(app.root_path, 'static'),
             'google3a8738f31820d.html',
             mimetype='text/plain'
         )
-        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Cache-Control'] = 'no-store, max-age=0'
         return response
     except Exception as e:
-        app.logger.error(f"Verification file error: {str(e)}")
+        app.logger.error(f"Static file serving failed: {str(e)}")
     
-    # Fallback to direct response
+    # Fallback to direct response if file not found
     verification_content = "google-site-verification: google3a8738f31820d.html"
-    return Response(
-        verification_content,
-        mimetype='text/plain',
-        headers={
-            'Cache-Control': 'no-cache',
-            'Content-Length': str(len(verification_content))
-        }
-    )
-
+    try:
+        return Response(
+            verification_content,
+            status=200,
+            mimetype='text/plain',
+            headers={
+                'Cache-Control': 'no-store',
+                'Content-Length': str(len(verification_content))
+            }
+        )
+    except Exception as e:
+        app.logger.critical(f"Verification failed completely: {str(e)}")
+        return "Verification unavailable", 500
+                
 @app.route('/')
 def home():
     app.logger.debug("Serving home page")
