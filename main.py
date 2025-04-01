@@ -223,6 +223,292 @@
 # def home():
 #     app.logger.debug("Serving home page")
 #     return render_template('index.html')
+
+# @app.route('/register', methods=['POST'])
+# @limiter.limit("5 per minute")
+# def register():
+#     try:
+#         ip_address = get_remote_address()
+#         if not check_rate_limit(f"register:{ip_address}", 5, 60):
+#             return jsonify({'error': 'Rate limit exceeded: 5 per minute'}), 429
+#         data = request.get_json()
+#         if not data:
+#             return jsonify({'error': 'No data provided'}), 400
+#         username, email, password = data.get('username'), data.get('email'), data.get('password')
+#         app.logger.debug(f"Register attempt: username={username}, email={email}, password={password}")
+#         if not username or len(username) < 3:
+#             return jsonify({'error': 'Username must be at least 3 characters'}), 400
+#         if not email or '@' not in email:
+#             return jsonify({'error': 'Invalid email address'}), 400
+#         if not password or len(password) < 5:
+#             return jsonify({'error': 'Password must be at least 5 characters'}), 400
+#         if User.query.filter(func.lower(User.username) == username.lower()).first():
+#             return jsonify({'error': 'Username already exists'}), 400
+#         if User.query.filter(func.lower(User.email) == email.lower()).first():
+#             return jsonify({'error': 'Email already registered'}), 400
+#         new_user = User(username=username, email=email, password=password)
+#         db.session.add(new_user)
+#         db.session.commit()
+#         # Verify user was saved
+#         saved_user = User.query.filter(func.lower(User.username) == username.lower()).first()
+#         if not saved_user:
+#             app.logger.error(f"Failed to save user {username} to database")
+#             return jsonify({'error': 'Failed to register user due to database error'}), 500
+#         session['user_id'] = new_user.id
+#         session.permanent = True
+#         app.logger.info(f"User {username} registered with user_id {new_user.id}, session: {session.get('user_id')}")
+#         return jsonify({'message': 'Registration successful', 'username': new_user.username, 'preferences': new_user.preferences}), 201
+#     except Exception as e:
+#         db.session.rollback()
+#         app.logger.error(f"Registration error: {str(e)}")
+#         return jsonify({'error': 'Registration failed'}), 500
+
+# @app.route('/login', methods=['POST'])
+# @limiter.limit("10 per minute")
+# def login():
+#     try:
+#         ip_address = get_remote_address()
+#         if not check_rate_limit(f"login:{ip_address}", 10, 60):
+#             return jsonify({'error': 'Rate limit exceeded: 10 per minute'}), 429
+#         data = request.get_json()
+#         if not data:
+#             return jsonify({'error': 'No data provided'}), 400
+#         identifier, password = data.get('identifier'), data.get('password')
+#         app.logger.debug(f"Login attempt: identifier={identifier}, password={password}")
+#         if not identifier or not password:
+#             return jsonify({'error': 'Username/email and password required'}), 400
+#         # Case-insensitive search for username or email
+#         user = User.query.filter(
+#             (func.lower(User.username) == identifier.lower()) | 
+#             (func.lower(User.email) == identifier.lower())
+#         ).first()
+#         if not user:
+#             app.logger.warning(f"Login failed: User with identifier {identifier} not found")
+#             return jsonify({'error': 'User not found. Please register or check your username/email.'}), 401
+#         app.logger.debug(f"Found user: username={user.username}, email={user.email}, stored password={user.password}")
+#         if user.password != password:
+#             app.logger.warning(f"Login failed: Incorrect password for user {identifier}. Entered: {password}, Stored: {user.password}")
+#             return jsonify({'error': 'Incorrect password. Please try again.'}), 401
+#         session['user_id'] = user.id
+#         session.permanent = True
+#         app.logger.info(f"User {user.username} logged in with user_id {user.id}, session: {session.get('user_id')}")
+#         return jsonify({
+#             'message': 'Login successful',
+#             'username': user.username,
+#             'preferences': user.preferences,
+#             'joinDate': user.created_at.strftime('%B %d, %Y') if user.created_at else 'Unknown'
+#         })
+#     except Exception as e:
+#         app.logger.error(f"Login error: {str(e)}")
+#         return jsonify({'error': 'Login failed due to an unexpected error'}), 500
+
+# @app.route('/logout', methods=['POST'])
+# @limiter.limit("10 per minute")
+# def logout():
+#     try:
+#         ip_address = get_remote_address()
+#         if not check_rate_limit(f"logout:{ip_address}", 10, 60):
+#             return jsonify({'error': 'Rate limit exceeded: 10 per minute'}), 429
+#         if 'user_id' not in session:
+#             return jsonify({'error': 'Not authenticated'}), 401
+#         user_id = session.get('user_id')
+#         session.clear()
+#         app.logger.info(f"User ID {user_id} logged out")
+#         return jsonify({'success': True})
+#     except Exception as e:
+#         app.logger.error(f"Logout error: {str(e)}")
+#         return jsonify({'error': 'Logout failed'}), 500
+
+# @app.route('/profile', methods=['GET'])
+# def profile():
+#     try:
+#         app.logger.debug(f"Profile request, session user_id: {session.get('user_id')}")
+#         if 'user_id' not in session:
+#             app.logger.warning("Profile access denied: No user_id in session")
+#             return jsonify({'error': 'Not authenticated'}), 401
+#         user = db.session.get(User, session['user_id'])
+#         if not user:
+#             app.logger.error(f"User not found for user_id: {session['user_id']}")
+#             return jsonify({'error': 'User not found'}), 404
+#         app.logger.info(f"Profile accessed for user: {user.username}")
+#         return jsonify({
+#             'username': user.username,
+#             'preferences': user.preferences,
+#             'joinDate': user.created_at.strftime('%B %d, %Y') if user.created_at else 'Unknown'
+#         })
+#     except Exception as e:
+#         app.logger.error(f"Profile error: {str(e)}")
+#         return jsonify({'error': 'Failed to fetch profile'}), 500
+
+# @app.route('/preferences', methods=['POST'])
+# def update_preferences():
+#     try:
+#         if 'user_id' not in session:
+#             return jsonify({'error': 'Not authenticated'}), 401
+#         data = request.get_json()
+#         if not data or 'summary_length' not in data:
+#             return jsonify({'error': 'No preference data provided'}), 400
+#         summary_length = data['summary_length']
+#         if summary_length not in ['100', '150', '200']:
+#             return jsonify({'error': 'Invalid preference value'}), 400
+#         user = db.session.get(User, session['user_id'])
+#         if not user:
+#             return jsonify({'error': 'User not found'}), 404
+#         user.preferences = summary_length
+#         db.session.commit()
+#         app.logger.info(f"User {user.username} updated preferences")
+#         return jsonify({'message': 'Preferences updated'})
+#     except Exception as e:
+#         db.session.rollback()
+#         app.logger.error(f"Preferences error: {str(e)}")
+#         return jsonify({'error': 'Failed to update preferences'}), 500
+
+# @app.route('/summarize', methods=['POST'])
+# @limiter.limit("10 per minute")
+# def summarize():
+#     try:
+#         ip_address = get_remote_address()
+#         app.logger.debug(f"Processing summarize request from {ip_address}")
+#         if not check_rate_limit(f"summarize:{ip_address}", 10, 60):
+#             return jsonify({'error': 'Rate limit exceeded: 10 per minute'}), 429
+            
+#         if 'user_id' not in session and 'trial_used' in session:
+#             return jsonify({'error': 'Please register to continue'}), 401
+            
+#         max_length = 150
+#         if 'user_id' in session:
+#             user = db.session.get(User, session['user_id'])
+#             if user and user.preferences:
+#                 max_length = int(user.preferences)
+                
+#         data = request.get_json()
+#         if not data or 'text' not in data:
+#             return jsonify({'error': 'No text provided. Please enter text to summarize.'}), 400
+            
+#         text = data['text'].strip()
+#         if not text:
+#             return jsonify({'error': 'Text is empty. Please enter text to summarize.'}), 400
+            
+#         if len(text.strip()) < 20:
+#             return jsonify({'error': 'Text too short. Please provide content with at least 20 characters.'}), 400
+            
+#         summary = summarize_text(text, max_length)
+        
+#         if 'user_id' not in session:
+#             session['trial_used'] = True
+            
+#         app.logger.debug(f"Summary generated: {summary[:50]}...")
+#         return jsonify({'summary': summary})
+        
+#     except ValueError as ve:
+#         app.logger.error(f"Summarization failed: {str(ve)}")
+#         return jsonify({'error': str(ve)}), 400
+#     except Exception as e:
+#         app.logger.error(f"Summarization failed unexpectedly: {str(e)}", exc_info=True)
+#         return jsonify({'error': 'An unexpected error occurred during summarization. Please try again.'}), 500
+
+# @app.route('/analyze', methods=['POST'])
+# @limiter.limit("10 per minute")
+# def analyze():
+#     try:
+#         ip_address = get_remote_address()
+#         if not check_rate_limit(f"analyze:{ip_address}", 10, 60):
+#             return jsonify({'error': 'Rate limit exceeded: 10 per minute'}), 429
+#         if 'user_id' not in session and 'trial_used' in session:
+#             return jsonify({'error': 'Please register to continue'}), 401
+#         data = request.get_json()
+#         if not data or 'text' not in data:
+#             return jsonify({'error': 'No text provided'}), 400
+#         text = data['text'].strip()
+#         if not text:
+#             return jsonify({'error': 'Text is empty. Please provide text to analyze.'}), 400
+#         if len(text) < 10:
+#             return jsonify({'error': 'Text too short for analysis (minimum 10 characters required)'}), 400
+#         analysis = analyze_text(text)
+#         if 'user_id' not in session:
+#             session['trial_used'] = True
+#         return jsonify({'analysis': analysis})
+#     except ValueError as ve:
+#         app.logger.error(f"Analyze error: {str(ve)}")
+#         return jsonify({'error': str(ve)}), 400
+#     except Exception as e:
+#         app.logger.error(f"Analyze error: {str(e)}")
+#         return jsonify({'error': 'An unexpected error occurred during analysis'}), 500
+
+# @app.route('/extract', methods=['POST'])
+# @limiter.limit("10 per minute")
+# async def extract():
+#     try:
+#         ip_address = get_remote_address()
+#         if not check_rate_limit(f"extract:{ip_address}", 10, 60):
+#             return jsonify({'error': 'Rate limit exceeded: 10 per minute'}), 429
+#         if 'user_id' not in session and 'trial_used' in session:
+#             return jsonify({'error': 'Please register to continue'}), 401
+#         data = request.get_json()
+#         if not data or 'url' not in data:
+#             return jsonify({'error': 'No URL provided'}), 400
+#         url = data['url'].strip()
+#         if not urlparse(url).scheme:
+#             return jsonify({'error': 'Invalid URL'}), 400
+#         content = await fetch_url_content(url)
+#         if 'user_id' not in session:
+#             session['trial_used'] = True
+#         return jsonify({'content': content})
+#     except Exception as e:
+#         app.logger.error(f"Extract error: {str(e)}")
+#         return jsonify({'error': str(e)}), 400
+
+# @app.route('/keywords', methods=['POST'])
+# @limiter.limit("10 per minute")
+# def keywords():
+#     try:
+#         ip_address = get_remote_address()
+#         if not check_rate_limit(f"keywords:{ip_address}", 10, 60):
+#             return jsonify({'error': 'Rate limit exceeded: 10 per minute'}), 429
+#         if 'user_id' not in session and 'trial_used' in session:
+#             return jsonify({'error': 'Please register to continue'}), 401
+#         data = request.get_json()
+#         if not data or 'text' not in data:
+#             return jsonify({'error': 'No text provided'}), 400
+#         text = data['text'].strip()
+#         if len(text) < 10:
+#             return jsonify({'error': 'Text too short for keyword extraction'}), 400
+#         keywords = extract_keywords(text)
+#         if 'user_id' not in session:
+#             session['trial_used'] = True
+#         return jsonify({'keywords': keywords})
+#     except Exception as e:
+#         app.logger.error(f"Keywords error: {str(e)}")
+#         return jsonify({'error': str(e)}), 400
+
+# @app.route('/sentiment', methods=['POST'])
+# @limiter.limit("10 per minute")
+# def sentiment():
+#     try:
+#         ip_address = get_remote_address()
+#         if not check_rate_limit(f"sentiment:{ip_address}", 10, 60):
+#             return jsonify({'error': 'Rate limit exceeded: 10 per minute'}), 429
+#         if 'user_id' not in session and 'trial_used' in session:
+#             return jsonify({'error': 'Please register to continue'}), 401
+#         data = request.get_json()
+#         if not data or 'text' not in data:
+#             return jsonify({'error': 'No text provided'}), 400
+#         text = data['text'].strip()
+#         if len(text) < 10:
+#             return jsonify({'error': 'Text too short for sentiment analysis'}), 400
+#         sentiment = analyze_sentiment(text)
+#         if 'user_id' not in session:
+#             session['trial_used'] = True
+#         return jsonify({'sentiment': sentiment})
+#     except Exception as e:
+#         app.logger.error(f"Sentiment error: {str(e)}")
+#         return jsonify({'error': str(e)}), 400
+
+# if __name__ == '__main__':
+#     app.logger.debug("Starting Waitress server...")
+#     serve(app, host='0.0.0.0', port=5000, threads=4)
+
+
 from flask import Flask, request, jsonify, session, render_template, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from bs4 import BeautifulSoup
