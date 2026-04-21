@@ -1,0 +1,17 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+.env
+.venv/
+app.log
+*.db
+*.sqlite3
+summery.db
+summarizer.db
+instance/
+.idea/
+.vscode/
