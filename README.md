@@ -1,38 +1,16 @@
-# Summery AI
+# React + Vite
 
-Summery AI is a Flask-based artificial intelligence web application designed to help users quickly summarize, analyze, and extract key information from text or URLs. 
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
-## Features
-- **Text Summarization:** Uses Google Gemini via LangChain to intelligently reduce large blocks of text into concise summaries.
-- **Sentiment Analysis:** Analyzes the sentiment of a given text (Positive/Negative/Neutral) using Gemini.
-- **Keyword Extraction:** Identifies the top keywords in an article using Gemini.
-- **URL Content Extraction:** Fetches and cleans textual content from web pages to allow direct analysis.
-- **User Authentication:** Accounts backed by an SQLite database with rate-limiting and user preferences (summary lengths).
+Currently, two official plugins are available:
 
-## Setup Instructions
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
 
-1. Clone the repository.
-2. Create a virtual environment:
-   ```bash
-   python -m venv venv
-   ```
-3. Activate the virtual environment:
-   - On Windows: `venv\Scripts\activate`
-   - On macOS/Linux: `source venv/bin/activate`
-4. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-5. Set up environment variables:
-   Copy `.env.example` to `.env` and add your `GOOGLE_API_KEY`.
-6. Run the application:
-   ```bash
-   python app.py
-   ```
-7. The app will be available at `http://localhost:5000/`.
+## React Compiler
 
-## Technology Stack
-- **Backend:** Python, Flask, Waitress
-- **NLP:** LangChain, Google Gemini API
-- **Database:** SQLAlchemy, SQLite
-- **Networking:** aiohttp, BeautifulSoup4
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+
+## Expanding the ESLint configuration
+
+If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.

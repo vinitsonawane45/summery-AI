@@ -18,7 +18,7 @@ from routes import main_bp
 
 pymysql.install_as_MySQLdb()
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='dist', static_url_path='/')
 
 # Configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///summarizer.db'
@@ -66,7 +66,7 @@ app.register_blueprint(main_bp)
 @app.route('/')
 def home():
     app.logger.debug("Serving home page")
-    return render_template('index.html')
+    return app.send_static_file('index.html')
 
 @app.route('/google3a8738f31820d.html')
 def google_verification():
